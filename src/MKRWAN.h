@@ -1,0 +1,728 @@
+/*
+  This file is part of the MKR WAN library.
+  Copyright (C) 2017  Arduino AG (http://www.arduino.cc/)
+
+  Based on the TinyGSM library https://github.com/vshymanskyy/TinyGSM
+  Copyright (c) 2016 Volodymyr Shymanskyy
+
+  MKR WAN library is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  MKR WAN library is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with MKR WAN library.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include "Arduino.h"
+
+template <class T, unsigned N>
+class SerialFifo
+{
+public:
+    SerialFifo()
+    {
+        clear();
+    }
+
+    void clear()
+    {
+        _r = 0;
+        _w = 0;
+    }
+
+    // writing thread/context API
+    //-------------------------------------------------------------
+
+    bool writeable(void)
+    {
+        return free() > 0;
+    }
+
+    int free(void)
+    {
+        int s = _r - _w;
+        if (s <= 0)
+            s += N;
+        return s - 1;
+    }
+
+    bool put(const T& c)
+    {
+        int i = _w;
+        int j = i;
+        i = _inc(i);
+        if (i == _r) // !writeable()
+            return false;
+        _b[j] = c;
+        _w = i;
+        return true;
+    }
+
+    int put(const T* p, int n, bool t = false)
+    {
+        int c = n;
+        while (c)
+        {
+            int f;
+            while ((f = free()) == 0) // wait for space
+            {
+                if (!t) return n - c; // no more space and not blocking
+                /* nothing / just wait */;
+            }
+            // check free space
+            if (c < f) f = c;
+            int w = _w;
+            int m = N - w;
+            // check wrap
+            if (f > m) f = m;
+            memcpy(&_b[w], p, f);
+            _w = _inc(w, f);
+            c -= f;
+            p += f;
+        }
+        return n - c;
+    }
+
+    // reading thread/context API
+    // --------------------------------------------------------
+
+    bool readable(void)
+    {
+        return (_r != _w);
+    }
+
+    size_t size(void)
+    {
+        int s = _w - _r;
+        if (s < 0)
+            s += N;
+        return s;
+    }
+
+    bool get(T* p)
+    {
+        int r = _r;
+        if (r == _w) // !readable()
+            return false;
+        *p = _b[r];
+        _r = _inc(r);
+        return true;
+    }
+
+    int get(T* p, int n, bool t = false)
+    {
+        int c = n;
+        while (c)
+        {
+            int f;
+            for (;;) // wait for data
+            {
+                f = size();
+                if (f)  break;        // free space
+                if (!t) return n - c; // no space and not blocking
+                /* nothing / just wait */;
+            }
+            // check available data
+            if (c < f) f = c;
+            int r = _r;
+            int m = N - r;
+            // check wrap
+            if (f > m) f = m;
+            memcpy(p, &_b[r], f);
+            _r = _inc(r, f);
+            c -= f;
+            p += f;
+        }
+        return n - c;
+    }
+
+private:
+    int _inc(int i, int n = 1)
+    {
+        return (i + n) % N;
+    }
+
+    T    _b[N];
+    int  _w;
+    int  _r;
+};
+
+#ifndef YIELD
+  #define YIELD() { delay(0); }
+#endif
+
+typedef const char* ConstStr;
+#define GFP(x) x
+#define GF(x)  x
+
+#ifdef LORA_DEBUG
+namespace {
+  template<typename T>
+  static void DBG(T last) {
+    LORA_DEBUG.println(last);
+  }
+
+  template<typename T, typename... Args>
+  static void DBG(T head, Args... tail) {
+    LORA_DEBUG.print(head);
+    LORA_DEBUG.print(' ');
+    DBG(tail...);
+  }
+}
+#else
+  #define DBG(...)
+#endif
+
+template<class T>
+const T& Min(const T& a, const T& b)
+{
+    return (b < a) ? b : a;
+}
+
+template<class T>
+const T& Max(const T& a, const T& b)
+{
+    return (b < a) ? a : b;
+}
+
+#if !defined(LORA_RX_BUFFER)
+  #define LORA_RX_BUFFER 256
+#endif
+
+#define LORA_NL "\r"
+static const char LORA_OK[] = "+OK";
+static const char LORA_ERROR[] = "+ERR";
+
+static const char ARDUINO_FW_VERSION[] = "ARD-078 1.1.2";
+
+typedef enum {
+    AS923 = 0,
+    AU915,
+    EU868 = 5,
+    KR920,
+    IN865,
+    US915,
+    US915_HYBRID,
+} _lora_band;
+
+typedef enum {
+    RFO = 0,
+    PABOOST,
+} _rf_mode;
+
+typedef enum {
+    ABP = 0,
+    OTAA,
+} _lora_mode;
+
+typedef enum {
+    APP_EUI = 0,
+    APP_KEY,
+    DEV_EUI,
+    DEV_ADDR,
+    NWKS_KEY,
+    APPS_KEY,
+} _lora_property;
+
+class LoRaModem : public Stream
+{
+
+public:
+  LoRaModem(__attribute__((unused)) Stream& stream = (Stream&)Serial)
+#ifdef SerialLoRa
+    : stream(SerialLoRa), lastPollTime(millis()), pollInterval(300000)
+#else
+    : stream(stream), lastPollTime(millis()), pollInterval(300000)
+#endif
+    {}
+
+public:
+  typedef SerialFifo<uint8_t, LORA_RX_BUFFER> RxFifo;
+
+private:
+  Stream&       stream;
+  bool          network_joined;
+  RxFifo        rx;
+  RxFifo        tx;
+  String        fw_version;
+  unsigned long lastPollTime;
+  unsigned long pollInterval;
+
+public:
+  virtual int joinOTAA(const char *appEui, const char *appKey, const char *devEui = NULL) {
+    YIELD();
+    rx.clear();
+    changeMode(OTAA);
+    set(APP_EUI, appEui);
+    set(APP_KEY, appKey);
+    if (devEui != NULL) {
+        set(DEV_EUI, devEui);
+    }
+    network_joined = join();
+    delay(1000);
+    return network_joined;
+  }
+
+  virtual int joinOTAA(String appEui, String appKey) {
+    return joinOTAA(appEui.c_str(), appKey.c_str(), NULL);
+  }
+
+  virtual int joinOTAA(String appEui, String appKey, String devEui) {
+    return joinOTAA(appEui.c_str(), appKey.c_str(), devEui.c_str());
+  }
+
+  virtual int joinABP(const char * devAddr, const char * nwkSKey, const char * appSKey) {
+    YIELD();
+    rx.clear();
+    changeMode(ABP);
+    set(DEV_ADDR, devAddr);
+    set(NWKS_KEY, nwkSKey);
+    set(APPS_KEY, appSKey);
+    network_joined = join();
+    delay(1000);
+    return network_joined;
+  }
+
+  virtual int joinABP(String devAddr, String nwkSKey) {
+    return joinABP(devAddr.c_str(), nwkSKey.c_str(), NULL);
+  }
+
+  virtual int joinABP(String devAddr, String nwkSKey, String appSKey) {
+    return joinABP(devAddr.c_str(), nwkSKey.c_str(), appSKey.c_str());
+  }
+
+  // Stream compatibility (like UDP)
+  void beginPacket() {
+    tx.clear();
+  }
+
+  int endPacket(bool confirmed = false) {
+    uint8_t buffer[LORA_RX_BUFFER];
+    memset(buffer, 0, LORA_RX_BUFFER);
+    int size = tx.get(buffer, tx.size());
+    return modemSend(buffer, size, confirmed);
+  }
+
+  size_t write(uint8_t c) {
+    return tx.put(c);
+  };
+
+  size_t write(const uint8_t *buffer, size_t size) {
+    return tx.put(buffer, size);
+  };
+
+  template <typename T> inline size_t write(T val) {return write((uint8_t*)&val, sizeof(T));};
+  using Print::write;
+
+  int parsePacket() {
+    return available();
+  }
+
+  virtual int available() {
+    YIELD();
+    if (!rx.size()) {
+      maintain();
+    }
+    return rx.size(); // + buf_available;
+  }
+
+  virtual int read(uint8_t *buf, size_t size) {
+    YIELD();
+    maintain();
+    size_t cnt = 0;
+    while (cnt < size) {
+      size_t chunk = Min(size-cnt, rx.size());
+      if (chunk > 0) {
+        rx.get(buf, chunk);
+        buf += chunk;
+        cnt += chunk;
+        continue;
+      }
+      // TODO: Read directly into user buffer?
+      maintain();
+      /*
+      if (buf_available > 0) {
+        modemRead(rx.free());
+      } else {
+        break;
+      }
+      */
+    }
+    return cnt;
+  }
+
+  virtual int read() {
+    uint8_t c;
+    if (read(&c, 1) == 1) {
+      return c;
+    }
+    return -1;
+  }
+
+  virtual int peek() { return -1; } //TODO
+  virtual void flush() { stream.flush(); }
+
+  virtual uint8_t connected() {
+    if (available()) {
+      return true;
+    }
+    return network_joined;
+  }
+
+  virtual operator bool() { return connected(); }
+
+public:
+
+  /*
+   * Basic functions
+   */
+  bool begin(_lora_band band = EU868) {
+#ifdef SerialLoRa
+    SerialLoRa.begin(19200);
+    pinMode(LORA_BOOT0, OUTPUT);
+    digitalWrite(LORA_BOOT0, LOW);
+    pinMode(LORA_RESET, OUTPUT);
+    digitalWrite(LORA_RESET, HIGH);
+    delay(200);
+    digitalWrite(LORA_RESET, LOW);
+    delay(200);
+    digitalWrite(LORA_RESET, HIGH);
+#endif
+    if (init()) {
+        return configureBand(band);
+    }
+    return false;
+  }
+
+  bool init() {
+    if (!autoBaud()) {
+      return false;
+    }
+    // populate version field on startup
+    version();
+    return true;
+  }
+
+  bool configureBand(_lora_band band = EU868) {
+    sendAT(GF("+BAND="), band);
+    if (waitResponse() != 1) {
+        return false;
+    }
+    if (band == EU868 && fw_version != ARDUINO_FW_VERSION) {
+        return dutyCycle(true);
+    }
+    return true;
+  }
+
+  void setBaud(unsigned long baud) {
+    sendAT(GF("+UART="), baud);
+  }
+
+  bool autoBaud(unsigned long timeout = 10000L) {
+    for (unsigned long start = millis(); millis() - start < timeout; ) {
+      sendAT(GF(""));
+      if (waitResponse(200) == 1) {
+          delay(100);
+          return true;
+      }
+      delay(100);
+    }
+    return false;
+  }
+
+  String version() {
+    sendAT(GF("+DEV?"));
+    if (waitResponse("+OK=") == 1) {
+        fw_version = stream.readStringUntil('\r');
+    }
+    sendAT(GF("+VER?"));
+    if (waitResponse("+OK=") == 1) {
+        fw_version += " " + stream.readStringUntil('\r');
+    }
+
+    return fw_version;
+  }
+
+  String deviceEUI() {
+    String eui;
+    sendAT(GF("+DEVEUI?"));
+    if (waitResponse("+OK=") == 1) {
+        eui = stream.readStringUntil('\r');
+    }
+    return eui;
+  }
+
+  void maintain() {
+    while (stream.available()) {
+      waitResponse(100);
+    }
+  }
+
+  void minPollInterval(unsigned long secs) {
+    pollInterval = secs * 1000;
+  }
+
+  void poll() {
+    if (millis() - lastPollTime < pollInterval) return;
+    lastPollTime = millis();
+    // simply trigger a fake write
+    uint8_t dummy = 0;
+    modemSend(&dummy, 1, true);
+  }
+
+  bool factoryDefault() {
+    sendAT(GF("+FACNEW"));  // Factory
+    return waitResponse() == 1;
+  }
+
+  /*
+   * Power functions
+   */
+
+  bool restart() {
+    if (!autoBaud()) {
+      return false;
+    }
+    sendAT(GF("+REBOOT"));
+    if (waitResponse(10000L, "+EVENT=0,0") != 1) {
+      return false;
+    }
+    delay(1000);
+    return init();
+  }
+
+  bool power(_rf_mode mode, uint8_t index) {
+    sendAT(GF("+RFPOWER="), mode,",",index);
+    if (waitResponse() != 1) {
+      return false;
+    } else {
+        String resp = stream.readStringUntil('\r');
+    }
+    return true;
+  }
+
+  bool dutyCycle(bool on) {
+    sendAT(GF("+DUTYCYCLE="), on);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
+  bool publicNetwork(bool publicNetwork) {
+    sendAT(GF("+NWK="), publicNetwork);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
+  bool sleep(bool on = true) {
+    sendAT(GF("+SLEEP="), on);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
+  bool format(bool hexMode) {
+    sendAT(GF("+DFORMAT="), hexMode);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
+private:
+
+  bool changeMode(_lora_mode mode) {
+    sendAT(GF("+MODE="), mode);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
+  bool join() {
+    sendAT(GF("+JOIN"));
+    if (waitResponse(60000L, "+EVENT=1,1") != 1) {
+      return false;
+    }
+    return true;
+  }
+
+  bool set(_lora_property prop, const char* value) {
+    switch (prop) {
+        case APP_EUI:
+            sendAT(GF("+APPEUI="), value);
+            break;
+        case APP_KEY:
+            sendAT(GF("+APPKEY="), value);
+            break;
+        case DEV_EUI:
+            sendAT(GF("+DEVEUI="), value);
+            break;
+        case DEV_ADDR:
+            sendAT(GF("+DEVADDR="), value);
+            break;
+        case NWKS_KEY:
+            sendAT(GF("+NWKSKEY="), value);
+            break;
+        case APPS_KEY:
+            sendAT(GF("+APPSKEY="), value);
+            break;
+        default:
+            return false;
+    }
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
+  int modemSend(const void* buff, size_t len, bool confirmed) {
+
+    size_t max_len = modemGetMaxSize();
+    if (len > max_len) {
+        return -1;
+    }
+
+    if (confirmed) {
+        sendAT(GF("+CTX "), len);
+    } else {
+        sendAT(GF("+UTX "), len);
+    }
+
+    stream.write((uint8_t*)buff, len);
+
+    if (waitResponse() != 1) {
+      return -1;
+    }
+    if (confirmed) {
+        if (waitResponse(10000L, "+ACK") != 1) {
+            return -1;
+        }
+    }
+    return len;
+  }
+
+  size_t modemGetMaxSize() {
+    if (fw_version == ARDUINO_FW_VERSION) {
+      return 64;
+    }
+    sendAT(GF("+MSIZE?"));
+    if (waitResponse(2000L) != 1) {
+      return 0;
+    }
+    streamSkipUntil('=');
+    return stream.readStringUntil('\r').toInt();
+  }
+
+  /* Utilities */
+  template<typename T>
+  void streamWrite(T last) {
+    stream.print(last);
+  }
+
+  template<typename T, typename... Args>
+  void streamWrite(T head, Args... tail) {
+    stream.print(head);
+    streamWrite(tail...);
+  }
+
+  int streamRead() { return stream.read(); }
+
+  bool streamSkipUntil(char c) { //TODO: timeout
+    while (true) {
+      while (!stream.available()) {}
+      if (stream.read() == c)
+        return true;
+    }
+    return false;
+  }
+
+  template<typename... Args>
+  void sendAT(Args... cmd) {
+    streamWrite("AT", cmd..., LORA_NL);
+    stream.flush();
+    YIELD();
+    //DBG("### AT:", cmd...);
+  }
+
+  // TODO: Optimize this!
+  uint8_t waitResponse(uint32_t timeout, String& data,
+                       ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
+                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL)
+  {
+    data.reserve(64);
+    int index = -1;
+    int length = 0;
+    unsigned long startMillis = millis();
+    do {
+      YIELD();
+      while (stream.available() > 0) {
+        int a = streamRead();
+        if (a < 0) continue;
+        data += (char)a;
+        if (r1 && data.endsWith(r1)) {
+          index = 1;
+          goto finish;
+        } else if (r2 && data.endsWith(r2)) {
+          index = 2;
+          goto finish;
+        } else if (r3 && data.endsWith(r3)) {
+          index = 3;
+          goto finish;
+        } else if (r4 && data.endsWith(r4)) {
+          index = 4;
+          goto finish;
+        } else if (r5 && data.endsWith(r5)) {
+          index = 5;
+          goto finish;
+        } else if (data.endsWith("+RECV=")) {
+          data = "";
+          stream.readStringUntil(',').toInt();
+          length = stream.readStringUntil('\r').toInt();
+          streamSkipUntil('\n');
+          streamSkipUntil('\n');
+          for (int i = 0; i < length;) {
+            if (stream.available()) {
+                rx.put(stream.read());
+                i++;
+            }
+          }
+        }
+      }
+    } while (millis() - startMillis < timeout);
+finish:
+    if (!index) {
+      data.trim();
+      if (data.length()) {
+        DBG("### Unhandled:", data);
+      }
+      data = "";
+    }
+    return index;
+  }
+
+  uint8_t waitResponse(uint32_t timeout,
+                       ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
+                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL)
+  {
+    String data;
+    return waitResponse(timeout, data, r1, r2, r3, r4, r5);
+  }
+
+  uint8_t waitResponse(ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
+                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL)
+  {
+    return waitResponse(1000, r1, r2, r3, r4, r5);
+  }
+
+};
