@@ -1,5 +1,7 @@
 # MKRWAN
 
+image:https://travis-ci.org/arduino-libraries/MKRWAN.svg?branch=master["Build Status", link="https://travis-ci.org/arduino-libraries/MKRWAN"]
+
 Provides APIs to communicate with LoRa and LoraWAN networks
 
 For more information about this library please visit us at
