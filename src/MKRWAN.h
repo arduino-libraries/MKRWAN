@@ -115,6 +115,15 @@ public:
         return true;
     }
 
+    bool peek(T* p)
+    {
+        int r = _r;
+        if (r == _w) // !readable()
+            return false;
+        *p = _b[r];
+        return true;
+    }
+
     int get(T* p, int n, bool t = false)
     {
         int c = n;
@@ -365,7 +374,14 @@ public:
     return -1;
   }
 
-  virtual int peek() { return -1; } //TODO
+  virtual int peek() {
+    uint8_t c;
+    if (rx.peek(&c) == true) {
+      return c;
+    }
+    return -1;
+  }
+
   virtual void flush() { stream.flush(); }
 
   virtual uint8_t connected() {
