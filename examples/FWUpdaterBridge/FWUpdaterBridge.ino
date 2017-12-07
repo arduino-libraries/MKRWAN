@@ -1,6 +1,8 @@
 /*
   FW Updater Bridge
   This sketch demonstrates how to update the FW on the MKR WAN 1300 LoRa module.
+  Once flashed it should be used in conjunction with stm32flash utility (https://github.com/facchinm/stm32flash)
+
   This example code is in the public domain.
 */
 
