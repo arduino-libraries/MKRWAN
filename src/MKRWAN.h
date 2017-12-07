@@ -115,6 +115,15 @@ public:
         return true;
     }
 
+    bool peek(T* p)
+    {
+        int r = _r;
+        if (r == _w) // !readable()
+            return false;
+        *p = _b[r];
+        return true;
+    }
+
     int get(T* p, int n, bool t = false)
     {
         int c = n;
@@ -229,6 +238,12 @@ typedef enum {
     NWKS_KEY,
     APPS_KEY,
 } _lora_property;
+
+typedef enum {
+    CLASS_A = 'A',
+    CLASS_B,
+    CLASS_C,
+} _lora_class;
 
 class LoRaModem : public Stream
 {
@@ -365,7 +380,14 @@ public:
     return -1;
   }
 
-  virtual int peek() { return -1; } //TODO
+  virtual int peek() {
+    uint8_t c;
+    if (rx.peek(&c) == true) {
+      return c;
+    }
+    return -1;
+  }
+
   virtual void flush() { stream.flush(); }
 
   virtual uint8_t connected() {
@@ -406,6 +428,14 @@ public:
     }
     // populate version field on startup
     version();
+    return true;
+  }
+
+  bool configureClass(_lora_class _class) {
+    sendAT(GF("+CLASS="), (char)_class);
+    if (waitResponse() != 1) {
+        return false;
+    }
     return true;
   }
 
@@ -506,6 +536,32 @@ public:
     }
     return true;
   }
+
+#ifdef SerialLoRa
+  // Sends the modem into dumb mode, so the Semtech chip can be controlled directly
+  void dumb(bool on = true) {
+      if (on) {
+        SerialLoRa.end();
+        pinMode(LORA_IRQ_DUMB, OUTPUT);
+        digitalWrite(LORA_IRQ_DUMB, LOW);
+
+        // Hardware reset
+        pinMode(LORA_BOOT0, OUTPUT);
+        digitalWrite(LORA_BOOT0, LOW);
+        pinMode(LORA_RESET, OUTPUT);
+        digitalWrite(LORA_RESET, HIGH);
+        delay(200);
+        digitalWrite(LORA_RESET, LOW);
+        delay(200);
+        digitalWrite(LORA_RESET, HIGH);
+
+        // You can now use SPI1 and LORA_IRQ_DUMB as CS to interface with the chip
+      } else {
+        pinMode(LORA_IRQ_DUMB, INPUT_PULLUP);
+        begin();
+      }
+  }
+#endif
 
   bool dutyCycle(bool on) {
     sendAT(GF("+DUTYCYCLE="), on);
