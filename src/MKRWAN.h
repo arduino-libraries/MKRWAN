@@ -239,6 +239,12 @@ typedef enum {
     APPS_KEY,
 } _lora_property;
 
+typedef enum {
+    CLASS_A = 'A',
+    CLASS_B,
+    CLASS_C,
+} _lora_class;
+
 class LoRaModem : public Stream
 {
 
@@ -422,6 +428,14 @@ public:
     }
     // populate version field on startup
     version();
+    return true;
+  }
+
+  bool configureClass(_lora_class _class) {
+    sendAT(GF("+CLASS="), (char)_class);
+    if (waitResponse() != 1) {
+        return false;
+    }
     return true;
   }
 
