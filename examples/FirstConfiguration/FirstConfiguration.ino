@@ -23,11 +23,11 @@ void setup() {
   while (!Serial);
   Serial.println("Welcome to MKRWAN1300 first configuration sketch");
   Serial.println("Register to your favourite LoRa network and we are ready to go!");
-  if (!modem.begin()) {
+  // change this to your regional band (eg. US915, AS923, ...)
+  if (!modem.begin(EU868)) {
     Serial.println("Failed to start module");
     while (1) {}
   };
-  modem.restart();
   Serial.print("Your module version is: ");
   Serial.println(modem.version());
   Serial.print("Your device EUI is: ");
