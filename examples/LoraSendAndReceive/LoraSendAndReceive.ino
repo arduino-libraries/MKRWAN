@@ -11,9 +11,10 @@ LoRaModem modem;
 // Uncomment if using the Murata chip as a module
 // LoRaModem modem(Serial1);
 
-// Replace with keys obtained from TheThingsNetwork console
-String appEui = "xxxxxxxxxxxxx";
-String appKey = "yyyyyyyyyyyyyyyyyyyyyyy";
+#include "arduino_secrets.h" 
+// Please enter your sensitive data in the Secret tab or arduino_secrets.h
+String appEui = SECRET_APP_EUI;
+String appKey = SECRET_APP_KEY;
 
 void setup() {
   // put your setup code here, to run once:
