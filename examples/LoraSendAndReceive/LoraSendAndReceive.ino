@@ -20,11 +20,11 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   while (!Serial);
-  if (!modem.begin()) {
+  // change this to your regional band (eg. US915, AS923, ...)
+  if (!modem.begin(EU868)) {
     Serial.println("Failed to start module");
     while (1) {}
   };
-  modem.restart();
   Serial.print("Your module version is: ");
   Serial.println(modem.version());
   Serial.print("Your device EUI is: ");
