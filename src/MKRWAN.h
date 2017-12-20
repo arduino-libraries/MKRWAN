@@ -404,7 +404,7 @@ public:
   /*
    * Basic functions
    */
-  bool begin(_lora_band band = EU868) {
+  bool begin(_lora_band band) {
 #ifdef SerialLoRa
     SerialLoRa.begin(19200);
     pinMode(LORA_BOOT0, OUTPUT);
@@ -439,7 +439,7 @@ public:
     return true;
   }
 
-  bool configureBand(_lora_band band = EU868) {
+  bool configureBand(_lora_band band) {
     sendAT(GF("+BAND="), band);
     if (waitResponse() != 1) {
         return false;
