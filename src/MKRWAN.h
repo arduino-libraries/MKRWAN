@@ -539,27 +539,23 @@ public:
 
 #ifdef SerialLoRa
   // Sends the modem into dumb mode, so the Semtech chip can be controlled directly
-  void dumb(bool on = true) {
-      if (on) {
-        SerialLoRa.end();
-        pinMode(LORA_IRQ_DUMB, OUTPUT);
-        digitalWrite(LORA_IRQ_DUMB, LOW);
+  // The only way to exit this mode is through a begin()
+  void dumb() {
+	SerialLoRa.end();
+	pinMode(LORA_IRQ_DUMB, OUTPUT);
+	digitalWrite(LORA_IRQ_DUMB, LOW);
 
-        // Hardware reset
-        pinMode(LORA_BOOT0, OUTPUT);
-        digitalWrite(LORA_BOOT0, LOW);
-        pinMode(LORA_RESET, OUTPUT);
-        digitalWrite(LORA_RESET, HIGH);
-        delay(200);
-        digitalWrite(LORA_RESET, LOW);
-        delay(200);
-        digitalWrite(LORA_RESET, HIGH);
+	// Hardware reset
+	pinMode(LORA_BOOT0, OUTPUT);
+	digitalWrite(LORA_BOOT0, LOW);
+	pinMode(LORA_RESET, OUTPUT);
+	digitalWrite(LORA_RESET, HIGH);
+	delay(200);
+	digitalWrite(LORA_RESET, LOW);
+	delay(200);
+	digitalWrite(LORA_RESET, HIGH);
 
-        // You can now use SPI1 and LORA_IRQ_DUMB as CS to interface with the chip
-      } else {
-        pinMode(LORA_IRQ_DUMB, INPUT_PULLUP);
-        begin();
-      }
+	// You can now use SPI1 and LORA_IRQ_DUMB as CS to interface with the chip
   }
 #endif
 
