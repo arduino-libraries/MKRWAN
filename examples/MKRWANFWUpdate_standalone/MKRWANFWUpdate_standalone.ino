@@ -283,7 +283,7 @@ void loop() {
   if (ret == 0) {
     Serial.println("Flashing ok :)");
     LoRaModem* modem = new LoRaModem();
-    modem->begin();
+    modem->begin(EU868);
     Serial.println(modem->version());
   }
   while (1);
