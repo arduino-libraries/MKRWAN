@@ -80,6 +80,8 @@ void setup() {
     while (1) {}
   }
 
+  delay(5000);
+
   int err;
   modem.beginPacket();
   modem.print("HeLoRA world!");

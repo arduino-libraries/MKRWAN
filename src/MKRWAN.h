@@ -208,7 +208,7 @@ const T& Max(const T& a, const T& b)
 static const char LORA_OK[] = "+OK";
 static const char LORA_ERROR[] = "+ERR";
 
-static const char ARDUINO_FW_VERSION[] = "ARD-078 1.1.2";
+static const char ARDUINO_FW_VERSION[] = "ARD-078 1.1.3";
 static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
 
 typedef enum {
@@ -313,8 +313,6 @@ public:
   // Stream compatibility (like UDP)
   void beginPacket() {
     tx.clear();
-    sendAT(GF(""));
-    waitResponse();
   }
 
   int endPacket(bool confirmed = false) {
