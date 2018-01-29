@@ -209,6 +209,7 @@ static const char LORA_OK[] = "+OK";
 static const char LORA_ERROR[] = "+ERR";
 
 static const char ARDUINO_FW_VERSION[] = "ARD-078 1.1.2";
+static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
 
 typedef enum {
     AS923 = 0,
@@ -237,6 +238,7 @@ typedef enum {
     DEV_ADDR,
     NWKS_KEY,
     APPS_KEY,
+    NWK_ID,
 } _lora_property;
 
 typedef enum {
@@ -292,29 +294,27 @@ public:
     return joinOTAA(appEui.c_str(), appKey.c_str(), devEui.c_str());
   }
 
-  virtual int joinABP(const char * devAddr, const char * nwkSKey, const char * appSKey) {
+  virtual int joinABP(/*const char* nwkId, */const char * devAddr, const char * nwkSKey, const char * appSKey) {
     YIELD();
     rx.clear();
     changeMode(ABP);
+    //set(NWK_ID, nwkId);
     set(DEV_ADDR, devAddr);
     set(NWKS_KEY, nwkSKey);
     set(APPS_KEY, appSKey);
     network_joined = join();
-    delay(1000);
-    return network_joined;
+    return (getJoinStatus() == 1);
   }
 
-  virtual int joinABP(String devAddr, String nwkSKey) {
-    return joinABP(devAddr.c_str(), nwkSKey.c_str(), NULL);
-  }
-
-  virtual int joinABP(String devAddr, String nwkSKey, String appSKey) {
-    return joinABP(devAddr.c_str(), nwkSKey.c_str(), appSKey.c_str());
+  virtual int joinABP(/*String nwkId, */String devAddr, String nwkSKey, String appSKey) {
+    return joinABP(/*nwkId.c_str(), */devAddr.c_str(), nwkSKey.c_str(), appSKey.c_str());
   }
 
   // Stream compatibility (like UDP)
   void beginPacket() {
     tx.clear();
+    sendAT(GF(""));
+    waitResponse();
   }
 
   int endPacket(bool confirmed = false) {
@@ -444,7 +444,7 @@ public:
     if (waitResponse() != 1) {
         return false;
     }
-    if (band == EU868 && fw_version != ARDUINO_FW_VERSION) {
+    if (band == EU868 && isArduinoFW()) {
         return dutyCycle(true);
     }
     return true;
@@ -593,6 +593,10 @@ public:
 
 private:
 
+  bool isArduinoFW() {
+    return (fw_version.indexOf(ARDUINO_FW_IDENTIFIER) >= 0);
+  }
+
   bool changeMode(_lora_mode mode) {
     sendAT(GF("+MODE="), mode);
     if (waitResponse() != 1) {
@@ -625,6 +629,9 @@ private:
             break;
         case NWKS_KEY:
             sendAT(GF("+NWKSKEY="), value);
+            break;
+        case NWK_ID:
+            sendAT(GF("+IDNWK="), value);
             break;
         case APPS_KEY:
             sendAT(GF("+APPSKEY="), value);
@@ -665,10 +672,19 @@ private:
   }
 
   size_t modemGetMaxSize() {
-    if (fw_version == ARDUINO_FW_VERSION) {
+    if (isArduinoFW()) {
       return 64;
     }
     sendAT(GF("+MSIZE?"));
+    if (waitResponse(2000L) != 1) {
+      return 0;
+    }
+    streamSkipUntil('=');
+    return stream.readStringUntil('\r').toInt();
+  }
+
+  size_t getJoinStatus() {
+    sendAT(GF("+NJS?"));
     if (waitResponse(2000L) != 1) {
       return 0;
     }
