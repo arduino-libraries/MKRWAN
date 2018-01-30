@@ -265,6 +265,7 @@ public:
 private:
   Stream&       stream;
   bool          network_joined;
+  uint8_t       apport;
   RxFifo        rx;
   RxFifo        tx;
   String        fw_version;
@@ -589,6 +590,11 @@ public:
     return true;
   }
 
+  bool setPort(uint8_t port) {
+    apport = port;
+    return true;
+  }
+
 private:
 
   bool isArduinoFW() {
@@ -651,12 +657,17 @@ private:
     }
 
     if (confirmed) {
-        sendAT(GF("+CTX "), len);
+        sendAT(GF("+CFM "), "1");
     } else {
-        sendAT(GF("+UTX "), len);
+        sendAT(GF("+CFM "), "0");
     }
 
-    stream.write((uint8_t*)buff, len);
+    char body[len + 1];
+    char message[len + 5];
+    memcpy(body, buff, len);
+    body[len] = 0;
+    snprintf(message, sizeof(message), "%u:%s", apport, body);
+    sendAT(GF("+SEND "), message);
 
     if (waitResponse() != 1) {
       return -1;
