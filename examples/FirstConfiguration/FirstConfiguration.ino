@@ -83,6 +83,7 @@ void setup() {
   delay(5000);
 
   int err;
+  modem.setPort(3);
   modem.beginPacket();
   modem.print("HeLoRA world!");
   err = modem.endPacket(true);
