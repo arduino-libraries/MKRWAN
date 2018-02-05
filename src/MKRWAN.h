@@ -265,6 +265,7 @@ public:
 private:
   Stream&       stream;
   bool          network_joined;
+  uint8_t       appport = 1;
   RxFifo        rx;
   RxFifo        tx;
   String        fw_version;
@@ -597,6 +598,11 @@ public:
     return true;
   }
 
+  bool setPort(uint8_t port) {
+    appport = port;
+    return true;
+  }
+
 private:
 
   bool isArduinoFW() {
@@ -659,12 +665,26 @@ private:
     }
 
     if (confirmed) {
-        sendAT(GF("+CTX "), len);
+        sendAT(GF("+CFM "), "1");
     } else {
-        sendAT(GF("+UTX "), len);
+        sendAT(GF("+CFM "), "0");
     }
 
-    stream.write((uint8_t*)buff, len);
+    // Sending message using AT+SEND
+    // The mkrwan3000-fw method for AT+SEND expects
+    // the application port as a prefix in the payload
+    // and everything inside the same packet (ending with LORA_NL)
+    char header[16];
+    snprintf(header, sizeof(header), "AT+SEND %u:", appport);
+    for (uint8_t i=0; i<strlen(header); i++) {
+        stream.write(header[i]);
+    }
+    for (uint8_t i=0; i<len; i++) {
+        stream.write(((uint8_t*)buff)[i]);
+    }
+    stream.write(LORA_NL);
+    stream.flush();
+    YIELD();
 
     if (waitResponse() != 1) {
       return -1;
