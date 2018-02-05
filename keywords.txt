@@ -30,6 +30,7 @@ autoBaud	KEYWORD2
 version	KEYWORD2
 deviceEUI	KEYWORD2
 maintain	KEYWORD2
+setPort	KEYWORD2
 minPollInterval	KEYWORD2
 poll	KEYWORD2
 factoryDefault	KEYWORD2

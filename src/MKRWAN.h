@@ -565,6 +565,14 @@ public:
     return true;
   }
 
+  bool setPort(uint8_t port) {
+    sendAT(GF("+PORT="), port);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
   bool publicNetwork(bool publicNetwork) {
     sendAT(GF("+NWK="), publicNetwork);
     if (waitResponse() != 1) {
