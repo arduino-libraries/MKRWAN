@@ -30,7 +30,7 @@ void setup() {
   LoRa.setPins(LORA_IRQ_DUMB, 6, 1); // set CS, reset, IRQ pin
   LoRa.setSPIFrequency(100000);
 
-  if (!LoRa.begin(915E6)) {
+  if (!LoRa.begin(SPI1, 915E6)) {
     Serial.println("Starting LoRa failed!");
     while (1);
   }

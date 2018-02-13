@@ -552,6 +552,7 @@ public:
 	digitalWrite(LORA_RESET, LOW);
 	delay(200);
 	digitalWrite(LORA_RESET, HIGH);
+	delay(50);
 
 	// You can now use SPI1 and LORA_IRQ_DUMB as CS to interface with the chip
   }
