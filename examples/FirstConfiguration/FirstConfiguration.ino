@@ -21,32 +21,32 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   while (!Serial);
-  Serial.println("Welcome to MKRWAN1300 first configuration sketch");
-  Serial.println("Register to your favourite LoRa network and we are ready to go!");
+  Serial.println(F("Welcome to MKRWAN1300 first configuration sketch"));
+  Serial.println(F("Register to your favourite LoRa network and we are ready to go!"));
   // change this to your regional band (eg. US915, AS923, ...)
   if (!modem.begin(EU868)) {
-    Serial.println("Failed to start module");
+    Serial.println(F("Failed to start module"));
     while (1) {}
   };
-  Serial.print("Your module version is: ");
+  Serial.print(F("Your module version is: "));
   Serial.println(modem.version());
-  Serial.print("Your device EUI is: ");
+  Serial.print(F("Your device EUI is: "));
   Serial.println(modem.deviceEUI());
 
   int mode = 0;
   while (mode != 1 && mode != 2) {
-    Serial.println("Are you connecting via OTAA (1) or ABP (2)?");
+    Serial.println(F("Are you connecting via OTAA (1) or ABP (2)?"));
     while (!Serial.available());
     mode = Serial.readStringUntil('\n').toInt();
   }
 
   int connected;
   if (mode == 1) {
-    Serial.println("Enter your APP EUI");
+    Serial.println(F("Enter your APP EUI"));
     while (!Serial.available());
     appEui = Serial.readStringUntil('\n');
 
-    Serial.println("Enter your APP KEY");
+    Serial.println(F("Enter your APP KEY"));
     while (!Serial.available());
     appKey = Serial.readStringUntil('\n');
 
@@ -56,15 +56,15 @@ void setup() {
     connected = modem.joinOTAA(appEui, appKey);
   } else if (mode == 2) {
 
-    Serial.println("Enter your Device Address");
+    Serial.println(F("Enter your Device Address"));
     while (!Serial.available());
     devAddr = Serial.readStringUntil('\n');
 
-    Serial.println("Enter your NWS KEY");
+    Serial.println(F("Enter your NWS KEY"));
     while (!Serial.available());
     nwkSKey = Serial.readStringUntil('\n');
 
-    Serial.println("Enter your APP SKEY");
+    Serial.println(F("Enter your APP SKEY"));
     while (!Serial.available());
     appSKey = Serial.readStringUntil('\n');
 
@@ -76,7 +76,7 @@ void setup() {
   }
 
   if (!connected) {
-    Serial.println("Something went wrong; are you indoor? Move near a window and retry");
+    Serial.println(F("Something went wrong; are you indoor? Move near a window and retry"));
     while (1) {}
   }
 
@@ -88,9 +88,9 @@ void setup() {
   modem.print("HeLoRA world!");
   err = modem.endPacket(true);
   if (err > 0) {
-    Serial.println("Message sent correctly!");
+    Serial.println(F("Message sent correctly!"));
   } else {
-    Serial.println("Error sending message :(");
+    Serial.println(F("Error sending message :("));
   }
 }
 
