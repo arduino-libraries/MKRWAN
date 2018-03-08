@@ -24,25 +24,25 @@ void setup() {
 
   modem.dumb();
 
-  Serial.println("LoRa Sender");
+  Serial.println(F("LoRa Sender"));
 
   // override the default CS, reset, and IRQ pins (optional)
   LoRa.setPins(LORA_IRQ_DUMB, 6, 1); // set CS, reset, IRQ pin
   LoRa.setSPIFrequency(100000);
 
   if (!LoRa.begin(SPI1, 915E6)) {
-    Serial.println("Starting LoRa failed!");
+    Serial.println(F("Starting LoRa failed!"));
     while (1);
   }
 }
 
 void loop() {
-  Serial.print("Sending packet: ");
+  Serial.print(F("Sending packet: "));
   Serial.println(counter);
 
   // send packet
   LoRa.beginPacket();
-  LoRa.print("hello ");
+  LoRa.print(F("hello "));
   LoRa.print(counter);
   LoRa.endPacket();
 

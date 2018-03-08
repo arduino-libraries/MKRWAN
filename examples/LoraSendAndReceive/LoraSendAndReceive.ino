@@ -22,17 +22,17 @@ void setup() {
   while (!Serial);
   // change this to your regional band (eg. US915, AS923, ...)
   if (!modem.begin(EU868)) {
-    Serial.println("Failed to start module");
+    Serial.println(F("Failed to start module"));
     while (1) {}
   };
-  Serial.print("Your module version is: ");
+  Serial.print(F("Your module version is: "));
   Serial.println(modem.version());
-  Serial.print("Your device EUI is: ");
+  Serial.print(F("Your device EUI is: "));
   Serial.println(modem.deviceEUI());
 
   int connected = modem.joinOTAA(appEui, appKey);
   if (!connected) {
-    Serial.println("Something went wrong; are you indoor? Move near a window and retry");
+    Serial.println(F("Something went wrong; are you indoor? Move near a window and retry"));
     while (1) {}
   }
 
@@ -45,8 +45,8 @@ void setup() {
 
 void loop() {
   Serial.println();
-  Serial.println("Enter a message to send to network");
-  Serial.println("(make sure that end-of-line 'NL' is enabled)");
+  Serial.println(F("Enter a message to send to network"));
+  Serial.println(F("(make sure that end-of-line 'NL' is enabled)"));
 
   while (!Serial.available());
   String msg = Serial.readStringUntil('\n');
@@ -56,7 +56,7 @@ void loop() {
   for (unsigned int i = 0; i < msg.length(); i++) {
     Serial.print(msg[i] >> 4, HEX);
     Serial.print(msg[i] & 0xF, HEX);
-    Serial.print(" ");
+    Serial.print(F(" "));
   }
   Serial.println();
 
@@ -65,15 +65,15 @@ void loop() {
   modem.print(msg);
   err = modem.endPacket(true);
   if (err > 0) {
-    Serial.println("Message sent correctly!");
+    Serial.println(F("Message sent correctly!"));
   } else {
-    Serial.println("Error sending message :(");
-    Serial.println("(you may send a limited amount of messages per minute, depending on the signal strength");
-    Serial.println("it may vary from 1 message every couple of seconds to 1 message every minute)");
+    Serial.println(F("Error sending message :("));
+    Serial.println(F("(you may send a limited amount of messages per minute, depending on the signal strength"));
+    Serial.println(F("it may vary from 1 message every couple of seconds to 1 message every minute)"));
   }
   delay(1000);
   if (!modem.available()) {
-    Serial.println("No downlink message received at this time.");
+    Serial.println(F("No downlink message received at this time."));
     return;
   }
   String rcv;
@@ -85,7 +85,7 @@ void loop() {
   for (unsigned int i = 0; i < rcv.length(); i++) {
     Serial.print(rcv[i] >> 4, HEX);
     Serial.print(rcv[i] & 0xF, HEX);
-    Serial.print(" ");
+    Serial.print(F(" "));
   }
   Serial.println();
 }
