@@ -598,6 +598,34 @@ public:
     return true;
   }
 
+/*
+	DataRate 	Modulation 	SF 	BW 	bit/s
+	0 	LoRa 	12 	125 	250
+	1 	LoRa 	11 	125 	440
+	2 	LoRa 	10 	125 	980
+	3 	LoRa 	9 	125 	1'760
+	4 	LoRa 	8 	125 	3'125
+	5 	LoRa 	7 	125 	5'470
+	6 	LoRa 	7 	250 	11'000
+*/
+
+  bool dataRate(uint8_t dr) {
+    sendAT(GF("+DR="), dr);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }  
+
+  bool setADR(bool adr) {
+    sendAT(GF("+ADR="), adr);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
+
 private:
 
   bool isArduinoFW() {
