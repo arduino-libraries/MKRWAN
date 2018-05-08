@@ -42,6 +42,8 @@ sleep	KEYWORD2
 changeMode	KEYWORD2
 changeClass	KEYWORD2
 dumb	KEYWORD2
+setADR	KEYWORD2
+dataRate	KEYWORD2
 
 #######################################
 # Constants
