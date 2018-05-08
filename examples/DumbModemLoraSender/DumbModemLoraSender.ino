@@ -5,6 +5,9 @@
  * 
  * The example is based on LoraSender by @sandeepmistry arduino-LoRa library
  * https://github.com/sandeepmistry/arduino-LoRa
+ *
+ * Starting from https://github.com/sandeepmistry/arduino-LoRa/commit/5f62ed2ce9d1623bfc12f468b8152ba1878b5b16,
+ * LoRa library knows about MKRWAN1300 and automatically restarts the module in dumb mode, uses SPI1 and the correct gpios.
  * 
  * Since there is no IRQ pin available the host must poll for data (unfortunately)
  * 
@@ -12,25 +15,22 @@
 
 #include <SPI.h>
 #include <LoRa.h>
-#include <MKRWAN.h>
+//#include <MKRWAN.h>
 
 int counter = 0;
 
-LoRaModem modem;
+//LoRaModem modem;
 
 void setup() {
   Serial.begin(9600);
   while (!Serial);
 
-  modem.dumb();
+  // No need to call modem.dumb() with arduino-LoRa >= 0.5.0
+  //modem.dumb();
 
   Serial.println("LoRa Sender");
 
-  // override the default CS, reset, and IRQ pins (optional)
-  LoRa.setPins(LORA_IRQ_DUMB, 6, 1); // set CS, reset, IRQ pin
-  LoRa.setSPIFrequency(100000);
-
-  if (!LoRa.begin(SPI1, 915E6)) {
+  if (!LoRa.begin(915E6)) {
     Serial.println("Starting LoRa failed!");
     while (1);
   }
