@@ -30,6 +30,8 @@ void setup() {
 
   Serial.println("LoRa Sender");
 
+  // Configure LoRa module to transmit and receive at 915MHz (915*10^6) 
+  // Replace 915E6 with the frequency you need (eg. 433E6 for 433MHz)
   if (!LoRa.begin(915E6)) {
     Serial.println("Starting LoRa failed!");
     while (1);
