@@ -625,6 +625,33 @@ public:
     return true;
   }
 
+  String getDevAddr() {
+    String devaddr;
+    sendAT(GF("+DEVADDR?"));
+    if (waitResponse("+OK=") == 1) {
+        devaddr = stream.readStringUntil('\r');
+    }
+    return devaddr;
+  }
+
+  String getNwkSKey() {
+    String nwkskey;
+    sendAT(GF("+NWKSKEY?"));
+    if (waitResponse("+OK=") == 1) {
+        nwkskey = stream.readStringUntil('\r');
+    }
+    return nwkskey;
+  }
+
+  String getAppSKey() {
+    String appskey;
+    sendAT(GF("+APPSKEY?"));
+    if (waitResponse("+OK=") == 1) {
+        appskey = stream.readStringUntil('\r');
+    }
+    return appskey;
+  }
+
 
 private:
 
