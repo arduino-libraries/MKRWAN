@@ -44,6 +44,16 @@ changeClass	KEYWORD2
 dumb	KEYWORD2
 setADR	KEYWORD2
 dataRate	KEYWORD2
+getDataRate	KEYWORD2
+setADR	KEYWORD2
+getADR	KEYWORD2
+getDevAddr	KEYWORD2
+getNwkSKey	KEYWORD2
+getAppSKey	KEYWORD2
+setFCU	KEYWORD2
+getFCU	KEYWORD2
+setFCD	KEYWORD2
+getFCD	KEYWORD2
 
 #######################################
 # Constants
