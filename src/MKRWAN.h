@@ -626,7 +626,7 @@ public:
   }
 
   String getDevAddr() {
-    String devaddr;
+    String devaddr = "";
     sendAT(GF("+DEVADDR?"));
     if (waitResponse("+OK=") == 1) {
         devaddr = stream.readStringUntil('\r');
@@ -635,7 +635,7 @@ public:
   }
 
   String getNwkSKey() {
-    String nwkskey;
+    String nwkskey = "";
     sendAT(GF("+NWKSKEY?"));
     if (waitResponse("+OK=") == 1) {
         nwkskey = stream.readStringUntil('\r');
@@ -644,7 +644,7 @@ public:
   }
 
   String getAppSKey() {
-    String appskey;
+    String appskey = "";
     sendAT(GF("+APPSKEY?"));
     if (waitResponse("+OK=") == 1) {
         appskey = stream.readStringUntil('\r');
