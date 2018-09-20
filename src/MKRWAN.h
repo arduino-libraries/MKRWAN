@@ -615,7 +615,16 @@ public:
       return false;
     }
     return true;
-  }  
+  }
+
+  int getDataRate() {
+    int dr = -1;
+    sendAT(GF("+DR?"));
+    if (waitResponse("+OK=") == 1) {
+        dr = stream.readStringUntil('\r').toInt();
+    }
+    return dr;
+  }
 
   bool setADR(bool adr) {
     sendAT(GF("+ADR="), adr);
@@ -623,6 +632,76 @@ public:
       return false;
     }
     return true;
+  }
+
+  int getADR() {
+    int adr = -1;
+    sendAT(GF("+ADR?"));
+    if (waitResponse("+OK=") == 1) {
+        adr = stream.readStringUntil('\r').toInt();
+    }
+    return adr;
+  }
+
+  String getDevAddr() {
+    String devaddr = "";
+    sendAT(GF("+DEVADDR?"));
+    if (waitResponse("+OK=") == 1) {
+        devaddr = stream.readStringUntil('\r');
+    }
+    return devaddr;
+  }
+
+  String getNwkSKey() {
+    String nwkskey = "";
+    sendAT(GF("+NWKSKEY?"));
+    if (waitResponse("+OK=") == 1) {
+        nwkskey = stream.readStringUntil('\r');
+    }
+    return nwkskey;
+  }
+
+  String getAppSKey() {
+    String appskey = "";
+    sendAT(GF("+APPSKEY?"));
+    if (waitResponse("+OK=") == 1) {
+        appskey = stream.readStringUntil('\r');
+    }
+    return appskey;
+  }
+
+  bool setFCU(uint16_t fcu) {
+    sendAT(GF("+FCU="), fcu);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
+  int32_t getFCU() {
+    int32_t fcu = -1;
+    sendAT(GF("+FCU?"));
+    if (waitResponse("+OK=") == 1) {
+        fcu = stream.readStringUntil('\r').toInt();
+    }
+    return fcu;
+  }
+
+  bool setFCD(uint16_t fcd) {
+    sendAT(GF("+FCD="), fcd);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
+  int32_t getFCD() {
+    int32_t fcd = -1;
+    sendAT(GF("+FCD?"));
+    if (waitResponse("+OK=") == 1) {
+        fcd = stream.readStringUntil('\r').toInt();
+    }
+    return fcd;
   }
 
 
