@@ -208,7 +208,7 @@ const T& Max(const T& a, const T& b)
 static const char LORA_OK[] = "+OK";
 static const char LORA_ERROR[] = "+ERR";
 
-static const char ARDUINO_FW_VERSION[] = "ARD-078 1.1.6";
+static const char ARDUINO_FW_VERSION[] = "ARD-078 1.1.7";
 static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
 
 typedef enum {
