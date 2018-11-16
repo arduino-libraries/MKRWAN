@@ -11,7 +11,7 @@ LoRaModem modem;
 // Uncomment if using the Murata chip as a module
 // LoRaModem modem(Serial1);
 
-#include "arduino_secrets.h" 
+#include "arduino_secrets.h"
 // Please enter your sensitive data in the Secret tab or arduino_secrets.h
 String appEui = SECRET_APP_EUI;
 String appKey = SECRET_APP_KEY;
@@ -76,15 +76,15 @@ void loop() {
     Serial.println("No downlink message received at this time.");
     return;
   }
-  String rcv;
-  rcv.reserve(64);
+  char rcv[64];
+  int i = 0;
   while (modem.available()) {
-    rcv += (char)modem.read();
+    rcv[i++] = (char)modem.read();
   }
-  Serial.print("Received: " + rcv + " - ");
-  for (unsigned int i = 0; i < rcv.length(); i++) {
-    Serial.print(rcv[i] >> 4, HEX);
-    Serial.print(rcv[i] & 0xF, HEX);
+  Serial.print("Received: ");
+  for (unsigned int j = 0; j < i; j++) {
+    Serial.print(rcv[j] >> 4, HEX);
+    Serial.print(rcv[j] & 0xF, HEX);
     Serial.print(" ");
   }
   Serial.println();
