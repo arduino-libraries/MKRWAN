@@ -670,6 +670,40 @@ public:
     return appskey;
   }
 
+  int getRX2DR() {
+    int dr = -1;
+    sendAT(GF("+RX2DR?"));
+    if (waitResponse("+OK=") == 1) {
+        dr = stream.readStringUntil('\r').toInt();
+    }
+    return dr;
+  }
+
+  bool setRX2DR(uint8_t dr) {
+    sendAT(GF("+RX2DR="),dr);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
+  uint32_t getRX2Freq() {
+    int freq = -1;
+    sendAT(GF("+RX2FQ?"));
+    if (waitResponse("+OK=") == 1) {
+        freq = stream.readStringUntil('\r').toInt();
+    }
+    return freq;
+  }
+
+  bool setRX2Freq(uint32_t freq) {
+    sendAT(GF("+RX2FQ="),freq);
+    if (waitResponse() != 1) {
+      return false;
+    }
+    return true;
+  }
+
   bool setFCU(uint16_t fcu) {
     sendAT(GF("+FCU="), fcu);
     if (waitResponse() != 1) {
