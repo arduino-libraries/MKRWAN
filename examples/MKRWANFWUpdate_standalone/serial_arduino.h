@@ -55,7 +55,7 @@ struct port_interface {
   port_err_t (*flush)(struct port_interface *port);
   port_err_t (*read)(struct port_interface *port, void *buf, size_t nbyte);
   port_err_t (*write)(struct port_interface *port, void *buf, size_t nbyte);
-  struct varlen_cmd *cmd_get_reply;
+  struct varlen_cmd *cmd_get_reply = NULL;
   Uart *dev;
   struct port_options *ops;
 };
