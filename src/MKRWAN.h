@@ -525,8 +525,8 @@ public:
     return init();
   }
 
-  bool power(_rf_mode mode, uint8_t index) {
-    sendAT(GF("+RFPOWER="), mode,",",index);
+  bool power(_rf_mode mode, uint8_t transmitPower) { // transmitPower can be between 0 and 5
+    sendAT(GF("+RFPOWER="), mode,",",transmitPower);
     if (waitResponse() != 1) {
       return false;
     } else {
