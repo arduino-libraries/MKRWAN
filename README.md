@@ -7,6 +7,8 @@ Provides APIs to communicate with LoRa and LoraWAN networks
 For more information about this library please visit us at
 https://www.arduino.cc/en/Reference/MKRWAN
 
+If you are looking for the firmware running on Murata CMWX1ZZABZ-078 module, the complete source code is hosted at https://github.com/arduino/mkrwan1300-fw
+
 ## License
 
 Copyright (C) 2017  Arduino AG (http://www.arduino.cc/)
