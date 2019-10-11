@@ -496,12 +496,15 @@ public:
     pollInterval = secs * 1000;
   }
 
-  void poll() {
-    if (millis() - lastPollTime < pollInterval) return;
-    lastPollTime = millis();
+/**
+ * @brief Poll modem for status of a confirmed packet
+ * 
+ * @return int >0 indicates packet sent.  <0 indicates LORA_ERROR.
+ */
+  int poll() {
     // simply trigger a fake write
     uint8_t dummy = 0;
-    modemSend(&dummy, 1, true);
+    return modemSend(&dummy, 1, true);
   }
 
   bool factoryDefault() {
@@ -704,6 +707,20 @@ public:
     return fcd;
   }
 
+/**
+ * @brief Trigger the modem to send received data
+ * 
+ * @return true if we received data from modem
+ * @return false if no response or LORA_ERROR
+ */
+  bool sendRXData() {
+    sendAT(GF("+RECV?"));
+    if (waitResponse(10) != 99) {
+      return false;
+    }
+    return true;
+  }
+
 
 private:
 
@@ -776,11 +793,6 @@ private:
 
     if (waitResponse() != 1) {
       return -1;
-    }
-    if (confirmed) {
-        if (waitResponse(10000L, "+ACK") != 1) {
-            return -1;
-        }
     }
     return len;
   }
@@ -879,9 +891,11 @@ private:
                 i++;
             }
           }
+<<<<<<< HEAD
+=======
+          index = 99;
         }
       }
-    } while (millis() - startMillis < timeout);
 finish:
     if (!index) {
       data.trim();
