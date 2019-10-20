@@ -709,6 +709,10 @@ public:
 
 /**
  * @brief Trigger the modem to send received data
+ *        For a Class C device, the module should not send a response if the host MCU (SAMD21) is sleeping.
+ *        Either the host needs to wake on RX or it needs to poll the module for a response.
+ *        This function is used in you want to poll the module for RX data.
+ *        Note, the module firmware should remove the call to at_Receive() in the LoraRxData() function defined in main.c
  * 
  * @return true if we received data from modem
  * @return false if no response or LORA_ERROR
