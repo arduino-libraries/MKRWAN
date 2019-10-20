@@ -844,15 +844,6 @@ private:
     return stream.readStringUntil('\r').toInt();
   }
 
-  size_t getJoinStatus() {
-    sendAT(GF("+NJS?"));
-    if (waitResponse(2000L) != 1) {
-      return 0;
-    }
-    streamSkipUntil('=');
-    return stream.readStringUntil('\r').toInt();
-  }
-
   /* Utilities */
   template<typename T>
   void streamWrite(T last) {
