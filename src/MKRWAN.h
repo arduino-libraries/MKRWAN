@@ -918,8 +918,10 @@ private:
             }
           }
           index = 99;
+          goto finish;
         }
       }
+    } while (millis() - startMillis < timeout);
 finish:
     if (!index) {
       data.trim();
