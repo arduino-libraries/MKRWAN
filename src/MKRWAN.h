@@ -206,7 +206,13 @@ const T& Max(const T& a, const T& b)
 
 #define LORA_NL "\r"
 static const char LORA_OK[] = "+OK";
-static const char LORA_ERROR[] = "+ERR";
+static const char LORA_ERROR[] = "+ERR\r";
+static const char LORA_ERROR_PARAM[] = "+ERR_PARAM\r";
+static const char LORA_ERROR_BUSY[] = "+ERR_BUSY\r";
+static const char LORA_ERROR_OVERFLOW[] = "+ERR_PARAM_OVERFLOW\r";
+static const char LORA_ERROR_NO_NETWORK[] = "+ERR_NO_NETWORK\r";
+static const char LORA_ERROR_RX[] = "+ERR_RX\r";
+static const char LORA_ERROR_UNKNOWN[] = "+ERR_UNKNOWN\r";
 
 static const char ARDUINO_FW_VERSION[] = "ARD-078 1.1.9";
 static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
@@ -774,8 +780,9 @@ private:
 
     stream.write((uint8_t*)buff, len);
 
-    if (waitResponse() != 1) {
-      return -1;
+    uint8_t rc = waitResponse( GFP(LORA_OK), GFP(LORA_ERROR), GFP(LORA_ERROR_PARAM), GFP(LORA_ERROR_BUSY), GFP(LORA_ERROR_OVERFLOW), GFP(LORA_ERROR_NO_NETWORK), GFP(LORA_ERROR_RX), GFP(LORA_ERROR_UNKNOWN) );
+    if (rc != 1) {
+      return rc;
     }
     if (confirmed) {
         if (waitResponse(10000L, "+ACK") != 1) {
@@ -840,7 +847,8 @@ private:
   // TODO: Optimize this!
   uint8_t waitResponse(uint32_t timeout, String& data,
                        ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
-                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL)
+                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
+                       ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
   {
     data.reserve(64);
     int index = -1;
@@ -866,6 +874,15 @@ private:
           goto finish;
         } else if (r5 && data.endsWith(r5)) {
           index = 5;
+          goto finish;
+        } else if (r6 && data.endsWith(r6)) {
+          index = 6;
+          goto finish;
+        } else if (r7 && data.endsWith(r7)) {
+          index = 7;
+          goto finish;
+        } else if (r8 && data.endsWith(r8)) {
+          index = 8;
           goto finish;
         } else if (data.endsWith("+RECV=")) {
           data = "";
@@ -895,16 +912,18 @@ finish:
 
   uint8_t waitResponse(uint32_t timeout,
                        ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
-                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL)
+                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
+                       ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
   {
     String data;
-    return waitResponse(timeout, data, r1, r2, r3, r4, r5);
+    return waitResponse(timeout, data, r1, r2, r3, r4, r5, r6, r7, r8);
   }
 
   uint8_t waitResponse(ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
-                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL)
+                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
+                       ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
   {
-    return waitResponse(1000, r1, r2, r3, r4, r5);
+    return waitResponse(1000, r1, r2, r3, r4, r5, r6, r7, r8);
   }
 
 };
