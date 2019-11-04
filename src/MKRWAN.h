@@ -780,13 +780,14 @@ private:
    *             -6 indicates LORA_ERROR_NO_NETWORK
    *             -7 indicates LORA_ERROR_RX
    *             -8 indicates LORA_ERROR_UNKNOWN
+   *             -20 packet exceeds max length
    *             
    */
   int modemSend(const void* buff, size_t len, bool confirmed) {
 
     size_t max_len = modemGetMaxSize();
     if (len > max_len) {
-        return -1;
+        return -20;
     }
 
     if (confirmed) {
@@ -803,7 +804,7 @@ private:
     } else if ( rc > 1 ) {    ///< LORA ERROR
       return -rc;
     } else {                  ///< timeout
-      return rc;
+      return -1;
     }
   }
 
