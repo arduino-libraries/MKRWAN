@@ -765,11 +765,29 @@ private:
     return true;
   }
 
+  /**
+   * @brief transmit uplink
+   * 
+   * @param buff data to transmit`
+   * @param len length of the buffer`
+   * @param confirmed true = transmit confirmed uplink
+   * @return int a positive number indicate success and is the number of bytes transmitted
+   *             -1 indicates a timeout error
+   *             -2 indicates LORA_ERROR
+   *             -3 indicates LORA_ERROR_PARAM
+   *             -4 indicates LORA_ERROR_BUSY
+   *             -5 indicates LORA_ERROR_OVERFLOW
+   *             -6 indicates LORA_ERROR_NO_NETWORK
+   *             -7 indicates LORA_ERROR_RX
+   *             -8 indicates LORA_ERROR_UNKNOWN
+   *             -20 packet exceeds max length
+   *             
+   */
   int modemSend(const void* buff, size_t len, bool confirmed) {
 
     size_t max_len = modemGetMaxSize();
     if (len > max_len) {
-        return -1;
+        return -20;
     }
 
     if (confirmed) {
@@ -780,16 +798,14 @@ private:
 
     stream.write((uint8_t*)buff, len);
 
-    uint8_t rc = waitResponse( GFP(LORA_OK), GFP(LORA_ERROR), GFP(LORA_ERROR_PARAM), GFP(LORA_ERROR_BUSY), GFP(LORA_ERROR_OVERFLOW), GFP(LORA_ERROR_NO_NETWORK), GFP(LORA_ERROR_RX), GFP(LORA_ERROR_UNKNOWN) );
-    if (rc != 1) {
-      return rc;
+    int8_t rc = waitResponse( GFP(LORA_OK), GFP(LORA_ERROR), GFP(LORA_ERROR_PARAM), GFP(LORA_ERROR_BUSY), GFP(LORA_ERROR_OVERFLOW), GFP(LORA_ERROR_NO_NETWORK), GFP(LORA_ERROR_RX), GFP(LORA_ERROR_UNKNOWN) );
+    if (rc == 1) {            ///< OK
+      return len;
+    } else if ( rc > 1 ) {    ///< LORA ERROR
+      return -rc;
+    } else {                  ///< timeout
+      return -1;
     }
-    if (confirmed) {
-        if (waitResponse(10000L, "+ACK") != 1) {
-            return -1;
-        }
-    }
-    return len;
   }
 
   size_t modemGetMaxSize() {
@@ -845,13 +861,30 @@ private:
   }
 
   // TODO: Optimize this!
-  uint8_t waitResponse(uint32_t timeout, String& data,
+  /**
+   * @brief wait for a response from the modem.
+   * 
+   * @param timeout the time in milliseconds to wait for a response
+   * @param data a string containing the response to wait for
+   * @param r1 response string
+   * @param r2 response string
+   * @param r3 response string
+   * @param r4 response string
+   * @param r5 response string
+   * @param r6 response string
+   * @param r7 response string
+   * @param r8 response string
+   * @return int8_t   n if the response = r<n>
+   *                  99 if the response ends with "+RECV="
+   *                  -1 if timeout
+   */
+  int8_t waitResponse(uint32_t timeout, String& data,
                        ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
                        ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
                        ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
   {
     data.reserve(64);
-    int index = -1;
+    int8_t index = -1;
     int length = 0;
     unsigned long startMillis = millis();
     do {
@@ -910,7 +943,7 @@ finish:
     return index;
   }
 
-  uint8_t waitResponse(uint32_t timeout,
+  int8_t waitResponse(uint32_t timeout,
                        ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
                        ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
                        ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
@@ -919,7 +952,7 @@ finish:
     return waitResponse(timeout, data, r1, r2, r3, r4, r5, r6, r7, r8);
   }
 
-  uint8_t waitResponse(ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
+  int8_t waitResponse(ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
                        ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
                        ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
   {
