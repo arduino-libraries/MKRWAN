@@ -1,5 +1,5 @@
 /* 
- *  STANDALONE FIRMWARE UPDATE FOR MKR WAN 1300
+ *  STANDALONE FIRMWARE UPDATE FOR MKR WAN 1300/1310
  *  This sketch implements STM32 bootloader protocol
  *  It is based on stm32flash (mirrored here git@github.com:facchinm/stm32flash.git) 
  *  with as little modifications as possible.
