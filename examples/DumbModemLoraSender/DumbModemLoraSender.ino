@@ -7,7 +7,7 @@
  * https://github.com/sandeepmistry/arduino-LoRa
  *
  * Starting from https://github.com/sandeepmistry/arduino-LoRa/commit/5f62ed2ce9d1623bfc12f468b8152ba1878b5b16,
- * LoRa library knows about MKRWAN1300 and automatically restarts the module in dumb mode, uses SPI1 and the correct gpios.
+ * LoRa library knows about MKRWAN1300/1310 and automatically restarts the module in dumb mode, uses SPI1 and the correct gpios.
  * 
  * Since there is no IRQ pin available the host must poll for data (unfortunately)
  * 
