@@ -341,7 +341,6 @@ public:
     uint8_t buffer[LORA_RX_BUFFER];
     memset(buffer, 0, LORA_RX_BUFFER);
     int size = tx.get(buffer, tx.size());
-    DBG("Im in endPacket. Buffer size: ", size);
     return modemSend(buffer, size, confirmed);
   }
 
@@ -448,7 +447,6 @@ public:
     // populate version field on startup
 
     waitResponse(init_msg);
-    DBG("### INITIAL MESSAGE: ", init_msg); 
     return true;
   }
 
@@ -463,10 +461,8 @@ public:
   bool configureBand(_lora_band band) {
     sendAT(GF("+BAND="), band);
     if (waitResponse() != 1) {
-        DBG("Waitresponde of +BAND did not return OK with band: ", band);
         return false;
     }
-    DBG("Waitresponde of +BAND returned OK with band: ", band);
     if (band == EU868) {    
         return dutyCycle(true);
     }
@@ -480,12 +476,9 @@ public:
 
     sendAT(GF("+RX2FQ=?"));
 
-    if (waitResponse(rxFreq) != 1) {    
-      DBG("Waitresponse of RX window frequency returned FALSE");
+    if (waitResponse(rxFreq) == 1) {   
+      rxFreq=rxFreq.substring(0,rxFreq.lastIndexOf('\r', rxFreq.indexOf("OK")));
     }
-    
-    rxFreq=rxFreq.substring(0,rxFreq.lastIndexOf('\r', rxFreq.indexOf("OK")));
-    DBG("Waitresponse of RX window frequency returned TRUE with frequency: ", rxFreq);
 
     return rxFreq.toInt();
   }
@@ -788,23 +781,18 @@ private:
   }
 
   bool changeMode(_lora_mode mode) {
-    DBG("Im in change mode. Mode: ", mode);
     sendAT(GF("+NJM="),mode);  
     if (waitResponse() != 1) {
-      DBG("Waitresponse of change mode returned FALSE");
       return false;
     }
-    DBG("Waitresponse of change mode returned TRUE");
     return true;
   }
 
   bool join() {
     sendAT(GF("+JOIN"));
-    if (waitResponse() != 1) {    
-      DBG("Waitresponse of join returned FALSE");
+    if (waitResponse() != 1) { 
       return false;
     }
-    DBG("Waitresponse of join returned TRUE");
     
     return true;
   }
@@ -836,10 +824,8 @@ private:
             return false;
     }
     if (waitResponse() != 1) {
-      DBG("Waitresponse of set", prop, "returned FALSE");
       return false;
     }
-    DBG("Waitresponse of set", prop, "returned TRUE");
     return true;
   }
 
@@ -875,7 +861,6 @@ private:
     
 
     int8_t rc = waitResponse( GFP(LORA_OK), GFP(LORA_ERROR), GFP(LORA_ERROR_PARAM), GFP(LORA_ERROR_BUSY), GFP(LORA_ERROR_OVERFLOW), GFP(LORA_ERROR_NO_NETWORK), GFP(LORA_ERROR_RX), GFP(LORA_ERROR_UNKNOWN) );
-    DBG("Im in modemSend. Value of rc: ", rc);
     if (rc == 1) {            ///< OK
       return len;
     } else if ( rc > 1 ) {    ///< LORA ERROR
@@ -899,11 +884,9 @@ private:
 
   size_t getJoinStatus() {
     sendAT(GF("+NJS=?"));
-    if (waitResponse() != 1) {   
-      DBG("NJS did not return with OK");
+    if (waitResponse() != 1) { 
       return 0;
     }
-    DBG("Join status= ", stream.readStringUntil('\r').toInt());
     return true;
   }
 
