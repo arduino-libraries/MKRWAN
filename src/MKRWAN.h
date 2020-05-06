@@ -304,7 +304,6 @@ public:
         set(DEV_EUI, devEui);
     }
     network_joined = join();
-    delay(1000);
     return (getJoinStatus() == 1);
   }
 
@@ -526,7 +525,7 @@ public:
   String applicationKey() {
     String appKeyRead;
     sendAT(GF("+APPKEY=?"));   
-    if (waitResponse(appKeyRead) == 1) {   
+    if (waitResponse(appKeyRead) == 1) {
         appKeyRead=appKeyRead.substring(0,appKeyRead.lastIndexOf('\r', appKeyRead.indexOf("OK")));
     }
     return appKeyRead;
@@ -790,35 +789,53 @@ private:
 
   bool join() {
     sendAT(GF("+JOIN"));
-    if (waitResponse() != 1) { 
+    if (waitResponse(60000L, "JOINED") != 1) {
       return false;
     }
-    
     return true;
   }
 
   bool set(_lora_property prop, const char* value) {
+
+    char* real_val = (char*)value;
+
+    // fw 1.3.1 requires keys to be in "mac address" format
+    if (strstr(value, ":") == NULL) {
+      String mac;
+      int i = 0;
+      while (1) {
+        mac += value[i++];
+        mac += value[i++];
+        if (value[i] != '\0') {
+          mac += ":";
+        } else {
+          break;
+        }
+      }
+      real_val = (char*)mac.c_str();
+    }
+
     switch (prop) {
         case APP_EUI:
-            sendAT(GF("+APPEUI="), value);
+            sendAT(GF("+APPEUI="), real_val);
             break;
         case APP_KEY:
-            sendAT(GF("+APPKEY="), value);
+            sendAT(GF("+APPKEY="), real_val);
             break;
         case DEV_EUI:
-            sendAT(GF("+DEUI="), value);
+            sendAT(GF("+DEUI="), real_val);
             break;
         case DEV_ADDR:
-            sendAT(GF("+DADDR="), value);
+            sendAT(GF("+DADDR="), real_val);
             break;
         case NWKS_KEY:
-            sendAT(GF("+NWKSKEY="), value);
+            sendAT(GF("+NWKSKEY="), real_val);
             break;
         case NWK_ID:
-            sendAT(GF("+NWKID="), value);
+            sendAT(GF("+NWKID="), real_val);
             break;
         case APPS_KEY:
-            sendAT(GF("+APPSKEY="), value);
+            sendAT(GF("+APPSKEY="), real_val);
             break;
         default:
             return false;
@@ -847,20 +864,29 @@ private:
    *             -20 packet exceeds max length
    *             
    */
-  int modemSend(const void* buff, size_t len, bool confirmed) {
+  int modemSend(uint8_t* buff, size_t len, bool confirmed) {
 
-    String msg_buf; 
-    for (size_t c=0; c<len; c++) {
-      msg_buf += (char)(*(uint8_t*)buff);
-      buff = buff + sizeof(uint8_t);
+    String msg_buf;
+    // Convert buff to hex
+    for (size_t i=0; i<len; i++) {
+      if (buff[i] < 10) {
+        msg_buf += "0";
+      }
+      msg_buf += String(buff[i], HEX);
     }
 
-    sendAT(GF("+SENDB="), portToJoin, ":", msg_buf);    
-    
-    stream.write((uint8_t*)buff, len);
-    
+    setCFM(confirmed);
+
+    sendAT(GF("+SENDB="), portToJoin, ":", msg_buf);
 
     int8_t rc = waitResponse( GFP(LORA_OK), GFP(LORA_ERROR), GFP(LORA_ERROR_PARAM), GFP(LORA_ERROR_BUSY), GFP(LORA_ERROR_OVERFLOW), GFP(LORA_ERROR_NO_NETWORK), GFP(LORA_ERROR_RX), GFP(LORA_ERROR_UNKNOWN) );
+
+    if (confirmed && rc == 1) {
+      // need both OK and shitty confirmation string
+      const char* confirmation = "confirmed message transmission";
+      rc = waitResponse(5000, GFP(confirmation));
+    }
+
     if (rc == 1) {            ///< OK
       return len;
     } else if ( rc > 1 ) {    ///< LORA ERROR
@@ -882,12 +908,18 @@ private:
     return stream.readStringUntil('\r').toInt();
   }
 
-  size_t getJoinStatus() {
+  bool getJoinStatus() {
+    String njs;
     sendAT(GF("+NJS=?"));
-    if (waitResponse() != 1) { 
-      return 0;
+
+    if (waitResponse(njs) == 1) {
+      njs=njs.substring(0,njs.lastIndexOf('\r', njs.indexOf("OK")));
+      njs.trim();
+      if (njs == "1") {
+        return true;
+      }
     }
-    return true;
+    return false;
   }
 
   /* Utilities */
@@ -921,6 +953,14 @@ private:
     DBG("### AT:", cmd...);
   }
 
+  uint8_t toHex(const char* str) {
+    char temp[3];
+    temp[0] = str[0];
+    temp[1] = str[1];
+    temp[2] = '\0';
+    return strtol(temp, NULL, 16);
+  }
+
   // TODO: Optimize this!
   /**
    * @brief wait for a response from the modem.
@@ -946,7 +986,6 @@ private:
   {
     data.reserve(64);
     int8_t index = -1;
-    int length = 0;
     unsigned long startMillis = millis();
     do {
       YIELD();
@@ -978,18 +1017,15 @@ private:
         } else if (r8 && data.endsWith(r8)) {
           index = 8;
           goto finish;
-        } else if (data.endsWith("+RECV=")) {
+        } else if (data.endsWith("+EVT:")) {
           data = "";
-          stream.readStringUntil(',').toInt();
-          length = stream.readStringUntil('\r').toInt();
-          streamSkipUntil('\n');
-          streamSkipUntil('\n');
-          for (int i = 0; i < length;) {
-            if (stream.available()) {
-                rx.put(stream.read());
-                i++;
-            }
+          int port = stream.readStringUntil(':').toInt();
+          data = stream.readStringUntil('\r');
+          for (size_t i=0; i<data.length(); i+=2) {
+            rx.put(toHex(&(data.c_str()[i])));
           }
+          // consume buffer; contains band and power info
+          data = stream.readStringUntil('\r');
         }
       }
     } while (millis() - startMillis < timeout);
