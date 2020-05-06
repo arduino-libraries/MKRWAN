@@ -500,6 +500,8 @@ public:
   }
 
   String version() {
+
+    // TODO: split firmware version in actual versions
     LoRaVersion   version_fw; 
 
     sendAT(GF("+VER=?"));   
