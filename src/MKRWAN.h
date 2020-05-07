@@ -550,23 +550,20 @@ public:
    */
 
   bool restart() {
+    String rst_msg;
     if (!autoBaud()) {
       return false;
     }
-    sendAT(GF("+REBOOT"));
-    if (waitResponse(10000L, "+EVENT=0,0") != 1) {
-      return false;
-    }
+    sendAT(GF("Z"));
+    waitResponse(rst_msg);
     delay(1000);
     return init();
   }
 
-  bool power(_rf_mode mode, uint8_t transmitPower) { // transmitPower can be between 0 and 5
-    sendAT(GF("+TXP="), mode,",",transmitPower);    
+  bool power(uint8_t transmitPower) { // transmitPower can be between 0 and 5
+    sendAT(GF("+TXP="),transmitPower);
     if (waitResponse() != 1) {
       return false;
-    } else {
-        String resp = stream.readStringUntil('\r');
     }
     return true;
   }
