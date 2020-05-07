@@ -468,15 +468,7 @@ public:
 
 
   int getrxfreq() {
-    String rxFreq;
-
-    sendAT(GF("+RX2FQ=?"));
-
-    if (waitResponse(rxFreq) == 1) {   
-      rxFreq=rxFreq.substring(0,rxFreq.lastIndexOf('\r', rxFreq.indexOf("OK")));
-    }
-
-    return rxFreq.toInt();
+    return getValue("RX2FQ").toInt();
   }
 
 
@@ -523,21 +515,11 @@ public:
   }
 
   String deviceEUI() {
-    String eui;
-    sendAT(GF("+DEUI=?"));   
-    if (waitResponse(eui) == 1) {   
-        eui=eui.substring(0,eui.lastIndexOf('\r', eui.indexOf("OK")));
-    }
-    return eui;
+    return getValue("DEUI");
   }
 
   String applicationKey() {
-    String appKeyRead;
-    sendAT(GF("+APPKEY=?"));   
-    if (waitResponse(appKeyRead) == 1) {
-        appKeyRead=appKeyRead.substring(0,appKeyRead.lastIndexOf('\r', appKeyRead.indexOf("OK")));
-    }
-    return appKeyRead;
+    return getValue("APPKEY");
   }
 
   void maintain() {
@@ -669,12 +651,7 @@ public:
   }
 
   int getDataRate() {
-    int dr = -1;
-    sendAT(GF("+DR=?"));
-    if (waitResponse() == 1) {
-        dr = stream.readStringUntil('\r').toInt();
-    }
-    return dr;
+    return getValue("DR").toInt();
   }
 
   bool setADR(bool adr) {
@@ -686,12 +663,7 @@ public:
   }
 
   int getADR() {
-    int adr = -1;
-    sendAT(GF("+ADR=?"));
-    if (waitResponse() == 1) {
-        adr = stream.readStringUntil('\r').toInt();
-    }
-    return adr;
+    return getValue("ADR").toInt();
   }
 
   bool setCFM(bool cfm) {
@@ -703,48 +675,23 @@ public:
   }
 
   int getCFM() {
-    int cfm = -1;
-    sendAT(GF("+CFM=?"));
-    if (waitResponse() == 1) {
-        cfm = stream.readStringUntil('\r').toInt();
-    }
-    return cfm;
+    return getValue("CFM").toInt();
   }
 
   int getCFS() {
-    int cfs = -1;
-    sendAT(GF("+CFS=?"));
-    if (waitResponse() == 1) {
-        cfs = stream.readStringUntil('\r').toInt();
-    }
-    return cfs;
+    return getValue("CFS").toInt();
   }
 
   String getDevAddr() {
-    String devaddr = "";
-    sendAT(GF("+DADDR=?"));
-    if (waitResponse() == 1) {
-        devaddr = stream.readStringUntil('\r');
-    }
-    return devaddr;
+    return getValue("DADDR");
   }
 
   String getNwkSKey() {
-    String nwkskey = "";
-    sendAT(GF("+NWKSKEY?"));
-    if (waitResponse("+OK=") == 1) {
-        nwkskey = stream.readStringUntil('\r');
-    }
-    return nwkskey;
+    return getValue("NWKSKEY");
   }
 
   String getAppSKey() {
-    String appskey = "";
-    sendAT(GF("+APPKEY=?"));
-    if (waitResponse() == 1) {    
-        appskey = stream.readStringUntil('\r');
-    }
-    return appskey;
+    return getValue("APPKEY");
   }
 
   bool setFCU(uint16_t fcu) {
@@ -756,12 +703,7 @@ public:
   }
 
   int32_t getFCU() {
-    int32_t fcu = -1;
-    sendAT(GF("+FCU?"));
-    if (waitResponse("+OK=") == 1) {
-        fcu = stream.readStringUntil('\r').toInt();
-    }
-    return fcu;
+    return getValue("FCU").toInt();
   }
 
   bool setFCD(uint16_t fcd) {
@@ -773,12 +715,7 @@ public:
   }
 
   int32_t getFCD() {
-    int32_t fcd = -1;
-    sendAT(GF("+FCD?"));
-    if (waitResponse("+OK=") == 1) {
-        fcd = stream.readStringUntil('\r').toInt();
-    }
-    return fcd;
+    return getValue("FCD").toInt();
   }
 
 
@@ -929,6 +866,16 @@ private:
       }
     }
     return false;
+  }
+
+  String getValue(String val) {
+      String temp;
+      sendAT(GF("+" + val + "=?"));
+      if (waitResponse(temp) == 1) {
+        temp=temp.substring(0,temp.lastIndexOf('\r', temp.indexOf("OK")));
+        return temp;
+     }
+  return "";
   }
 
   /* Utilities */
