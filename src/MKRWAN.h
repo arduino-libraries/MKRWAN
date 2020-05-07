@@ -472,10 +472,6 @@ public:
   }
 
 
-  void setBaud(unsigned long baud) {
-    sendAT(GF("+UART="), baud);
-  }
-
   bool autoBaud(unsigned long timeout = 10000L) {
     for (unsigned long start = millis(); millis() - start < timeout; ) {
       sendAT(GF(""));
@@ -540,11 +536,6 @@ public:
     modemSend(&dummy, 1, true);
   }
 
-  bool factoryDefault() {
-    sendAT(GF("+FACNEW"));  // Factory
-    return waitResponse() == 1;
-  }
-
   /*
    * Power functions
    */
@@ -605,28 +596,13 @@ public:
   }
 
   bool publicNetwork(bool publicNetwork) {
-    sendAT(GF("+NWK="), publicNetwork);
+    sendAT(GF("+PNM="), publicNetwork);
     if (waitResponse() != 1) {
       return false;
     }
     return true;
   }
 
-  bool sleep(bool on = true) {
-    sendAT(GF("+SLEEP="), on);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
-  }
-
-  bool format(bool hexMode) {
-    sendAT(GF("+DFORMAT="), hexMode);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
-  }
 
 /*
 	DataRate 	Modulation 	SF 	BW 	bit/s
@@ -689,30 +665,6 @@ public:
 
   String getAppSKey() {
     return getValue("APPKEY");
-  }
-
-  bool setFCU(uint16_t fcu) {
-    sendAT(GF("+FCU="), fcu);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
-  }
-
-  int32_t getFCU() {
-    return getValue("FCU").toInt();
-  }
-
-  bool setFCD(uint16_t fcd) {
-    sendAT(GF("+FCD="), fcd);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
-  }
-
-  int32_t getFCD() {
-    return getValue("FCD").toInt();
   }
 
 
@@ -837,18 +789,6 @@ private:
     } else {                  ///< timeout
       return -1;
     }
-  }
-
-  size_t modemGetMaxSize() {
-    if (isArduinoFW()) {
-      return 64;
-    }
-    sendAT(GF("+MSIZE?"));
-    if (waitResponse(2000L) != 1) {
-      return 0;
-    }
-    streamSkipUntil('=');
-    return stream.readStringUntil('\r').toInt();
   }
 
   bool getJoinStatus() {
