@@ -262,11 +262,8 @@ struct fw_version_LoRa_s {
   String        mac_version;
 };
 
-class LoRaVersion : public IPAddress 
-{
-  public:
-    fw_version_LoRa_s   fw_version_LoRa;
-};
+IPAddress     app_addr;
+IPAddress     mac_addr;
 
 class LoRaModem : public Stream
 {
@@ -499,20 +496,30 @@ public:
     return false;
   }
 
-  String version() {
+  IPAddress version() {
 
     // TODO: split firmware version in actual versions
-    LoRaVersion   version_fw; 
+    String        app_version_str;
+    String        mac_version_str;
+    String        app_num_str;
+    String        mac_num_str;
 
     sendAT(GF("+VER=?"));   
     if (waitResponse(fw_version) == 1) {
-        version_fw.fw_version_LoRa.app_version=fw_version.substring(0,fw_version.indexOf('\r'));  
-        version_fw.fw_version_LoRa.mac_version=fw_version.substring(fw_version.indexOf('\n')+1, fw_version.lastIndexOf('\r', fw_version.indexOf("OK")));
-        
-        fw_version=fw_version.substring(0,fw_version.lastIndexOf('\r', fw_version.indexOf("OK")));
+        app_version_str=fw_version.substring(0,fw_version.indexOf('\r'));
+        mac_version_str=fw_version.substring(fw_version.indexOf('\n')+1, fw_version.lastIndexOf('\r', fw_version.indexOf("OK"))); 
+    }
+    app_num_str=app_version_str.substring(app_version_str.indexOf('=')+2, app_version_str.lastIndexOf('\r'));
+    mac_num_str=mac_version_str.substring(mac_version_str.indexOf('=')+2, mac_version_str.lastIndexOf('\r'));
+
+    if (app_addr.fromString(app_num_str)){
+      DBG("App num: ", app_addr);
+    }
+    if (mac_addr.fromString(mac_num_str)){
+      DBG("Mac num: ", mac_addr);
     }
 
-    return fw_version;
+    return app_addr;
   }
 
   String deviceEUI() {
