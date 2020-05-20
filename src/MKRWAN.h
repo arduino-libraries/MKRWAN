@@ -466,6 +466,41 @@ public:
     return true;
   }
 
+  String getTConf() {
+    String tconf_read;
+    tconf_read="GetTConf Fail";
+
+    sendAT(GF("+TCONF=?"));
+    if (waitResponse(tconf_read) == 1) {
+      tconf_read=tconf_read.substring(0, tconf_read.lastIndexOf('\r', tconf_read.indexOf("OK"))); 
+    }
+    return tconf_read;
+  }
+
+  String setTConf(String params) {
+    String tconf;
+    tconf="SetTConf Fail";
+    
+    //DBG("Debug in TConf. Parameters:", params);
+    params.trim();
+    sendAT(GF("+TCONF="), params.c_str());
+    if (waitResponse(1000,tconf) == 1) {
+      DBG("Waitresponse ok");
+    }
+    else {
+      DBG("FAIL");
+    }
+    tconf = getTConf();
+    return tconf;
+  }
+
+  bool enTtone() {
+    sendAT(GF("+TTONE"));
+    if (waitResponse() == 1) {
+          return true;
+    }
+    return false;
+  }
 
   int getrxfreq() {
     return getValue("RX2FQ").toInt();
