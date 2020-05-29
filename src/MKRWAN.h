@@ -20,6 +20,7 @@
 */
 
 #include "Arduino.h"
+#include "IPAddress.h"
 
 template <class T, unsigned N>
 class SerialFifo
@@ -204,10 +205,10 @@ const T& Max(const T& a, const T& b)
   #define LORA_RX_BUFFER 256
 #endif
 
-#define LORA_NL "\r"
-static const char LORA_OK[] = "+OK";
-static const char LORA_ERROR[] = "+ERR\r";
-static const char LORA_ERROR_PARAM[] = "+ERR_PARAM\r";
+#define LORA_NL "\n"
+static const char LORA_OK[] = "OK\r\n";
+static const char LORA_ERROR[] = "ERROR\r\n";
+static const char LORA_ERROR_PARAM[] = "PARAM_ERROR\r\n";
 static const char LORA_ERROR_BUSY[] = "+ERR_BUSY\r";
 static const char LORA_ERROR_OVERFLOW[] = "+ERR_PARAM_OVERFLOW\r";
 static const char LORA_ERROR_NO_NETWORK[] = "+ERR_NO_NETWORK\r";
@@ -219,12 +220,15 @@ static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
 
 typedef enum {
     AS923 = 0,
-    AU915,
+    AU915 = 1,
+    CN470 = 2, 
+    CN779 = 3,
+    EU433 = 4,
     EU868 = 5,
-    KR920,
-    IN865,
-    US915,
-    US915_HYBRID,
+    KR920 = 6,
+    IN865 = 7,
+    US915 = 8,
+    RU864 = 9,
 } _lora_band;
 
 typedef enum {
@@ -234,7 +238,7 @@ typedef enum {
 
 typedef enum {
     ABP = 0,
-    OTAA,
+    OTAA = 1,
 } _lora_mode;
 
 typedef enum {
@@ -253,6 +257,14 @@ typedef enum {
     CLASS_C,
 } _lora_class;
 
+struct fw_version_LoRa_s {
+  String        app_version;
+  String        mac_version;
+};
+
+IPAddress     app_addr;
+IPAddress     mac_addr;
+
 class LoRaModem : public Stream
 {
 
@@ -267,6 +279,7 @@ public:
 
 public:
   typedef SerialFifo<uint8_t, LORA_RX_BUFFER> RxFifo;
+  uint8_t portToJoin;
 
 private:
   Stream&       stream;
@@ -288,8 +301,7 @@ public:
         set(DEV_EUI, devEui);
     }
     network_joined = join();
-    delay(1000);
-    return network_joined;
+    return (getJoinStatus() == 1);
   }
 
   virtual int joinOTAA(String appEui, String appKey) {
@@ -410,7 +422,7 @@ public:
    */
   bool begin(_lora_band band) {
 #ifdef SerialLoRa
-    SerialLoRa.begin(19200);
+    SerialLoRa.begin(9600);
     pinMode(LORA_BOOT0, OUTPUT);
     digitalWrite(LORA_BOOT0, LOW);
     pinMode(LORA_RESET, OUTPUT);
@@ -427,11 +439,10 @@ public:
   }
 
   bool init() {
-    if (!autoBaud()) {
-      return false;
-    }
+    String        init_msg;
     // populate version field on startup
-    version();
+
+    waitResponse(init_msg);
     return true;
   }
 
@@ -448,15 +459,53 @@ public:
     if (waitResponse() != 1) {
         return false;
     }
-    if (band == EU868 && isArduinoFW()) {
+    if (band == EU868) {    
         return dutyCycle(true);
     }
+  
     return true;
   }
 
-  void setBaud(unsigned long baud) {
-    sendAT(GF("+UART="), baud);
+  String getTConf() {
+    String tconf_read;
+    tconf_read="GetTConf Fail";
+
+    sendAT(GF("+TCONF=?"));
+    if (waitResponse(tconf_read) == 1) {
+      tconf_read=tconf_read.substring(0, tconf_read.lastIndexOf('\r', tconf_read.indexOf("OK"))); 
+    }
+    return tconf_read;
   }
+
+  String setTConf(String params) {
+    String tconf;
+    tconf="SetTConf Fail";
+    
+    //DBG("Debug in TConf. Parameters:", params);
+    params.trim();
+    sendAT(GF("+TCONF="), params.c_str());
+    if (waitResponse(1000,tconf) == 1) {
+      DBG("Waitresponse ok");
+    }
+    else {
+      DBG("FAIL");
+    }
+    tconf = getTConf();
+    return tconf;
+  }
+
+  bool enTtone() {
+    sendAT(GF("+TTONE"));
+    if (waitResponse() == 1) {
+          return true;
+    }
+    return false;
+  }
+
+  int getrxfreq() {
+    return getValue("RX2FQ").toInt();
+  }
+
 
   bool autoBaud(unsigned long timeout = 10000L) {
     for (unsigned long start = millis(); millis() - start < timeout; ) {
@@ -470,26 +519,38 @@ public:
     return false;
   }
 
-  String version() {
-    sendAT(GF("+DEV?"));
-    if (waitResponse("+OK=") == 1) {
-        fw_version = stream.readStringUntil('\r');
+  IPAddress version() {
+
+    // TODO: split firmware version in actual versions
+    String        app_version_str;
+    String        mac_version_str;
+    String        app_num_str;
+    String        mac_num_str;
+
+    sendAT(GF("+VER=?"));   
+    if (waitResponse(fw_version) == 1) {
+        app_version_str=fw_version.substring(0,fw_version.indexOf('\r'));
+        mac_version_str=fw_version.substring(fw_version.indexOf('\n')+1, fw_version.lastIndexOf('\r', fw_version.indexOf("OK"))); 
     }
-    sendAT(GF("+VER?"));
-    if (waitResponse("+OK=") == 1) {
-        fw_version += " " + stream.readStringUntil('\r');
+    app_num_str=app_version_str.substring(app_version_str.indexOf('=')+2, app_version_str.lastIndexOf('\r'));
+    mac_num_str=mac_version_str.substring(mac_version_str.indexOf('=')+2, mac_version_str.lastIndexOf('\r'));
+
+    if (app_addr.fromString(app_num_str)){
+      DBG("App num: ", app_addr);
+    }
+    if (mac_addr.fromString(mac_num_str)){
+      DBG("Mac num: ", mac_addr);
     }
 
-    return fw_version;
+    return app_addr;
   }
 
   String deviceEUI() {
-    String eui;
-    sendAT(GF("+DEVEUI?"));
-    if (waitResponse("+OK=") == 1) {
-        eui = stream.readStringUntil('\r');
-    }
-    return eui;
+    return getValue("DEUI");
+  }
+
+  String applicationKey() {
+    return getValue("APPKEY");
   }
 
   void maintain() {
@@ -510,33 +571,25 @@ public:
     modemSend(&dummy, 1, true);
   }
 
-  bool factoryDefault() {
-    sendAT(GF("+FACNEW"));  // Factory
-    return waitResponse() == 1;
-  }
-
   /*
    * Power functions
    */
 
   bool restart() {
+    String rst_msg;
     if (!autoBaud()) {
       return false;
     }
-    sendAT(GF("+REBOOT"));
-    if (waitResponse(10000L, "+EVENT=0,0") != 1) {
-      return false;
-    }
+    sendAT(GF("Z"));
+    waitResponse(rst_msg);
     delay(1000);
     return init();
   }
 
-  bool power(_rf_mode mode, uint8_t transmitPower) { // transmitPower can be between 0 and 5
-    sendAT(GF("+RFPOWER="), mode,",",transmitPower);
+  bool power(uint8_t transmitPower) { // transmitPower can be between 0 and 5
+    sendAT(GF("+TXP="),transmitPower);
     if (waitResponse() != 1) {
       return false;
-    } else {
-        String resp = stream.readStringUntil('\r');
     }
     return true;
   }
@@ -565,7 +618,7 @@ public:
 #endif
 
   bool dutyCycle(bool on) {
-    sendAT(GF("+DUTYCYCLE="), on);
+    sendAT(GF("+DCS="), on);   
     if (waitResponse() != 1) {
       return false;
     }
@@ -573,36 +626,18 @@ public:
   }
 
   bool setPort(uint8_t port) {
-    sendAT(GF("+PORT="), port);
-    if (waitResponse() != 1) {
-      return false;
-    }
+    portToJoin=port;
     return true;
   }
 
   bool publicNetwork(bool publicNetwork) {
-    sendAT(GF("+NWK="), publicNetwork);
+    sendAT(GF("+PNM="), publicNetwork);
     if (waitResponse() != 1) {
       return false;
     }
     return true;
   }
 
-  bool sleep(bool on = true) {
-    sendAT(GF("+SLEEP="), on);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
-  }
-
-  bool format(bool hexMode) {
-    sendAT(GF("+DFORMAT="), hexMode);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
-  }
 
 /*
 	DataRate 	Modulation 	SF 	BW 	bit/s
@@ -624,12 +659,7 @@ public:
   }
 
   int getDataRate() {
-    int dr = -1;
-    sendAT(GF("+DR?"));
-    if (waitResponse("+OK=") == 1) {
-        dr = stream.readStringUntil('\r').toInt();
-    }
-    return dr;
+    return getValue("DR").toInt();
   }
 
   bool setADR(bool adr) {
@@ -641,73 +671,35 @@ public:
   }
 
   int getADR() {
-    int adr = -1;
-    sendAT(GF("+ADR?"));
-    if (waitResponse("+OK=") == 1) {
-        adr = stream.readStringUntil('\r').toInt();
+    return getValue("ADR").toInt();
+  }
+
+  bool setCFM(bool cfm) {
+    sendAT(GF("+CFM="), cfm);
+    if (waitResponse() != 1) {
+      return false;
     }
-    return adr;
+    return true;
+  }
+
+  int getCFM() {
+    return getValue("CFM").toInt();
+  }
+
+  int getCFS() {
+    return getValue("CFS").toInt();
   }
 
   String getDevAddr() {
-    String devaddr = "";
-    sendAT(GF("+DEVADDR?"));
-    if (waitResponse("+OK=") == 1) {
-        devaddr = stream.readStringUntil('\r');
-    }
-    return devaddr;
+    return getValue("DADDR");
   }
 
   String getNwkSKey() {
-    String nwkskey = "";
-    sendAT(GF("+NWKSKEY?"));
-    if (waitResponse("+OK=") == 1) {
-        nwkskey = stream.readStringUntil('\r');
-    }
-    return nwkskey;
+    return getValue("NWKSKEY");
   }
 
   String getAppSKey() {
-    String appskey = "";
-    sendAT(GF("+APPSKEY?"));
-    if (waitResponse("+OK=") == 1) {
-        appskey = stream.readStringUntil('\r');
-    }
-    return appskey;
-  }
-
-  bool setFCU(uint16_t fcu) {
-    sendAT(GF("+FCU="), fcu);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
-  }
-
-  int32_t getFCU() {
-    int32_t fcu = -1;
-    sendAT(GF("+FCU?"));
-    if (waitResponse("+OK=") == 1) {
-        fcu = stream.readStringUntil('\r').toInt();
-    }
-    return fcu;
-  }
-
-  bool setFCD(uint16_t fcd) {
-    sendAT(GF("+FCD="), fcd);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
-  }
-
-  int32_t getFCD() {
-    int32_t fcd = -1;
-    sendAT(GF("+FCD?"));
-    if (waitResponse("+OK=") == 1) {
-        fcd = stream.readStringUntil('\r').toInt();
-    }
-    return fcd;
+    return getValue("APPKEY");
   }
 
 
@@ -718,7 +710,7 @@ private:
   }
 
   bool changeMode(_lora_mode mode) {
-    sendAT(GF("+MODE="), mode);
+    sendAT(GF("+NJM="),mode);  
     if (waitResponse() != 1) {
       return false;
     }
@@ -727,34 +719,53 @@ private:
 
   bool join() {
     sendAT(GF("+JOIN"));
-    if (waitResponse(60000L, "+EVENT=1,1") != 1) {
+    if (waitResponse(60000L, "JOINED") != 1) {
       return false;
     }
     return true;
   }
 
   bool set(_lora_property prop, const char* value) {
+
+    char* real_val = (char*)value;
+
+    // fw 1.3.1 requires keys to be in "mac address" format
+    if (strstr(value, ":") == NULL) {
+      String mac;
+      int i = 0;
+      while (1) {
+        mac += value[i++];
+        mac += value[i++];
+        if (value[i] != '\0') {
+          mac += ":";
+        } else {
+          break;
+        }
+      }
+      real_val = (char*)mac.c_str();
+    }
+
     switch (prop) {
         case APP_EUI:
-            sendAT(GF("+APPEUI="), value);
+            sendAT(GF("+APPEUI="), real_val);
             break;
         case APP_KEY:
-            sendAT(GF("+APPKEY="), value);
+            sendAT(GF("+APPKEY="), real_val);
             break;
         case DEV_EUI:
-            sendAT(GF("+DEVEUI="), value);
+            sendAT(GF("+DEUI="), real_val);
             break;
         case DEV_ADDR:
-            sendAT(GF("+DEVADDR="), value);
+            sendAT(GF("+DADDR="), real_val);
             break;
         case NWKS_KEY:
-            sendAT(GF("+NWKSKEY="), value);
+            sendAT(GF("+NWKSKEY="), real_val);
             break;
         case NWK_ID:
-            sendAT(GF("+IDNWK="), value);
+            sendAT(GF("+NWKID="), real_val);
             break;
         case APPS_KEY:
-            sendAT(GF("+APPSKEY="), value);
+            sendAT(GF("+APPSKEY="), real_val);
             break;
         default:
             return false;
@@ -783,22 +794,29 @@ private:
    *             -20 packet exceeds max length
    *             
    */
-  int modemSend(const void* buff, size_t len, bool confirmed) {
+  int modemSend(uint8_t* buff, size_t len, bool confirmed) {
 
-    size_t max_len = modemGetMaxSize();
-    if (len > max_len) {
-        return -20;
+    String msg_buf;
+    // Convert buff to hex
+    for (size_t i=0; i<len; i++) {
+      if (buff[i] < 10) {
+        msg_buf += "0";
+      }
+      msg_buf += String(buff[i], HEX);
     }
 
-    if (confirmed) {
-        sendAT(GF("+CTX "), len);
-    } else {
-        sendAT(GF("+UTX "), len);
-    }
+    setCFM(confirmed);
 
-    stream.write((uint8_t*)buff, len);
+    sendAT(GF("+SENDB="), portToJoin, ":", msg_buf);
 
     int8_t rc = waitResponse( GFP(LORA_OK), GFP(LORA_ERROR), GFP(LORA_ERROR_PARAM), GFP(LORA_ERROR_BUSY), GFP(LORA_ERROR_OVERFLOW), GFP(LORA_ERROR_NO_NETWORK), GFP(LORA_ERROR_RX), GFP(LORA_ERROR_UNKNOWN) );
+
+    if (confirmed && rc == 1) {
+      // need both OK and shitty confirmation string
+      const char* confirmation = "confirmed message transmission";
+      rc = waitResponse(5000, GFP(confirmation));
+    }
+
     if (rc == 1) {            ///< OK
       return len;
     } else if ( rc > 1 ) {    ///< LORA ERROR
@@ -808,25 +826,28 @@ private:
     }
   }
 
-  size_t modemGetMaxSize() {
-    if (isArduinoFW()) {
-      return 64;
+  bool getJoinStatus() {
+    String njs;
+    sendAT(GF("+NJS=?"));
+
+    if (waitResponse(njs) == 1) {
+      njs=njs.substring(0,njs.lastIndexOf('\r', njs.indexOf("OK")));
+      njs.trim();
+      if (njs == "1") {
+        return true;
+      }
     }
-    sendAT(GF("+MSIZE?"));
-    if (waitResponse(2000L) != 1) {
-      return 0;
-    }
-    streamSkipUntil('=');
-    return stream.readStringUntil('\r').toInt();
+    return false;
   }
 
-  size_t getJoinStatus() {
-    sendAT(GF("+NJS?"));
-    if (waitResponse(2000L) != 1) {
-      return 0;
-    }
-    streamSkipUntil('=');
-    return stream.readStringUntil('\r').toInt();
+  String getValue(String val) {
+      String temp;
+      sendAT(GF("+" + val + "=?"));
+      if (waitResponse(temp) == 1) {
+        temp=temp.substring(0,temp.lastIndexOf('\r', temp.indexOf("OK")));
+        return temp;
+     }
+  return "";
   }
 
   /* Utilities */
@@ -857,7 +878,15 @@ private:
     streamWrite("AT", cmd..., LORA_NL);
     stream.flush();
     YIELD();
-    //DBG("### AT:", cmd...);
+    DBG("### AT:", cmd...);
+  }
+
+  uint8_t toHex(const char* str) {
+    char temp[3];
+    temp[0] = str[0];
+    temp[1] = str[1];
+    temp[2] = '\0';
+    return strtol(temp, NULL, 16);
   }
 
   // TODO: Optimize this!
@@ -885,7 +914,6 @@ private:
   {
     data.reserve(64);
     int8_t index = -1;
-    int length = 0;
     unsigned long startMillis = millis();
     do {
       YIELD();
@@ -917,18 +945,15 @@ private:
         } else if (r8 && data.endsWith(r8)) {
           index = 8;
           goto finish;
-        } else if (data.endsWith("+RECV=")) {
+        } else if (data.endsWith("+EVT:")) {
           data = "";
-          stream.readStringUntil(',').toInt();
-          length = stream.readStringUntil('\r').toInt();
-          streamSkipUntil('\n');
-          streamSkipUntil('\n');
-          for (int i = 0; i < length;) {
-            if (stream.available()) {
-                rx.put(stream.read());
-                i++;
-            }
+          int port = stream.readStringUntil(':').toInt();
+          data = stream.readStringUntil('\r');
+          for (size_t i=0; i<data.length(); i+=2) {
+            rx.put(toHex(&(data.c_str()[i])));
           }
+          // consume buffer; contains band and power info
+          data = stream.readStringUntil('\r');
         }
       }
     } while (millis() - startMillis < timeout);
@@ -959,4 +984,10 @@ finish:
     return waitResponse(1000, r1, r2, r3, r4, r5, r6, r7, r8);
   }
 
+  int8_t waitResponse(String& data, ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
+                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
+                       ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
+  {
+    return waitResponse(1000, data, r1, r2, r3, r4, r5, r6, r7, r8);
+  }                    
 };
