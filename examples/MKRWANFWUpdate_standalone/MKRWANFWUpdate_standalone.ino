@@ -35,7 +35,7 @@ void setup() {
   };
 
   port.flags =  PORT_CMD_INIT | PORT_GVR_ETX | PORT_BYTE | PORT_RETRY;
-  port.dev   =  &Serial2;
+  port.dev   =  &SerialLoRa;
   port.ops   =  &port_opts;
 
   assignCallbacks(&port);
@@ -267,8 +267,8 @@ again:
 
 void resetModuleRunning() {
   digitalWrite(LORA_BOOT0, LOW);
-  Serial2.end();
-  Serial2.begin(19200);
+  SerialLoRa.end();
+  SerialLoRa.begin(19200);
   delay(100);
   digitalWrite(LORA_RESET, HIGH);
   delay(100);
@@ -282,6 +282,7 @@ void loop() {
   // put your main code here, to run repeatedly:
   if (ret == 0) {
     Serial.println("Flashing ok :)");
+    SerialLoRa.end();
     LoRaModem* modem = new LoRaModem();
     modem->begin(EU868);
     Serial.println(modem->version());

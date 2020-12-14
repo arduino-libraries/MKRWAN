@@ -1,11 +1,14 @@
 #ifndef _H_PORT
 #define _H_PORT
 
-#include "Uart.h"
 #include "Arduino.h"
 
 #define usleep(x)  delayMicroseconds(x)
 
+#ifndef __MBED__
+#include "Uart.h"
+#define UART Uart
+#endif
 
 #define fprintf(output, ...) {                                                \
                               do {                                            \
@@ -56,7 +59,7 @@ struct port_interface {
   port_err_t (*read)(struct port_interface *port, void *buf, size_t nbyte);
   port_err_t (*write)(struct port_interface *port, void *buf, size_t nbyte);
   struct varlen_cmd *cmd_get_reply = NULL;
-  Uart *dev;
+  UART *dev;
   struct port_options *ops;
 };
 

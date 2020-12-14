@@ -163,7 +163,7 @@ private:
 };
 
 #ifndef YIELD
-  #define YIELD() { delay(0); }
+  #define YIELD() { delay(2); }
 #endif
 
 typedef const char* ConstStr;
@@ -857,7 +857,7 @@ private:
     streamWrite("AT", cmd..., LORA_NL);
     stream.flush();
     YIELD();
-    //DBG("### AT:", cmd...);
+    DBG("### AT:", cmd...);
   }
 
   // TODO: Optimize this!
