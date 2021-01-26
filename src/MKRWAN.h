@@ -410,7 +410,7 @@ public:
    */
   bool begin(_lora_band band) {
 #ifdef SerialLoRa
-    SerialLoRa.begin(19200);
+    SerialLoRa.begin(19200, SERIAL_8N2);
     pinMode(LORA_BOOT0, OUTPUT);
     digitalWrite(LORA_BOOT0, LOW);
     pinMode(LORA_RESET, OUTPUT);
