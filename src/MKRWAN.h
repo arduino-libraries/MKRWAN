@@ -214,7 +214,7 @@ static const char LORA_ERROR_NO_NETWORK[] = "+ERR_NO_NETWORK\r";
 static const char LORA_ERROR_RX[] = "+ERR_RX\r";
 static const char LORA_ERROR_UNKNOWN[] = "+ERR_UNKNOWN\r";
 
-static const char ARDUINO_FW_VERSION[] = "ARD-078 1.1.9";
+static const char ARDUINO_FW_VERSION[] = "ARD-078 1.2.1";
 static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
 
 typedef enum {
@@ -408,9 +408,9 @@ public:
   /*
    * Basic functions
    */
-  bool begin(_lora_band band) {
+  bool begin(_lora_band band, uint32_t baud = 19200, uint16_t config = SERIAL_8N2) {
 #ifdef SerialLoRa
-    SerialLoRa.begin(19200, SERIAL_8N2);
+    SerialLoRa.begin(baud, config);
     pinMode(LORA_BOOT0, OUTPUT);
     digitalWrite(LORA_BOOT0, LOW);
     pinMode(LORA_RESET, OUTPUT);
@@ -422,6 +422,8 @@ public:
 #endif
     if (init()) {
         return configureBand(band);
+    } else {
+      return begin(band, baud, SERIAL_8N1);
     }
     return false;
   }
@@ -432,6 +434,9 @@ public:
     }
     // populate version field on startup
     version();
+    if (!isLatestFW()) {
+      DBG("Please update fw using MKRWANFWUpdate_standalone.ino sketch");
+    }
     return true;
   }
 
@@ -715,6 +720,10 @@ private:
 
   bool isArduinoFW() {
     return (fw_version.indexOf(ARDUINO_FW_IDENTIFIER) >= 0);
+  }
+
+  bool isLatestFW() {
+    return (fw_version == ARDUINO_FW_VERSION);
   }
 
   bool changeMode(_lora_mode mode) {

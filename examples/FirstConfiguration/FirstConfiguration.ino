@@ -30,6 +30,10 @@ void setup() {
   };
   Serial.print("Your module version is: ");
   Serial.println(modem.version());
+  if (modem.version() != ARDUINO_FW_VERSION) {
+    Serial.println("Please make sure that the latest modem firmware is installed.");
+    Serial.println("To update the firmware upload the 'MKRWANFWUpdate_standalone.ino' sketch.");
+  }
   Serial.print("Your device EUI is: ");
   Serial.println(modem.deviceEUI());
 
