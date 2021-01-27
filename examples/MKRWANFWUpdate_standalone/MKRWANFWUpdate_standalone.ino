@@ -53,7 +53,7 @@ void setup() {
 
   Serial.println("Press a key to start FW update");
   port.open(&port);
-  port.flush(&port);
+  //port.flush(&port);
 
   stm = stm32_init(&port, 1);
 
