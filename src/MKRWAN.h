@@ -21,6 +21,13 @@
 
 #include "Arduino.h"
 
+#ifdef PORTENTA_CARRIER
+#undef LORA_RESET
+#define LORA_RESET (PD_5)
+#undef LORA_BOOT0
+#define LORA_BOOT0 (PJ_11)
+#endif
+
 template <class T, unsigned N>
 class SerialFifo
 {
