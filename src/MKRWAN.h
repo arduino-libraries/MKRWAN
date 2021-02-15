@@ -28,6 +28,8 @@
 #define LORA_BOOT0 (PJ_11)
 #endif
 
+#define DEFAULT_JOIN_TIMEOUT 60000L
+
 template <class T, unsigned N>
 class SerialFifo
 {
@@ -285,7 +287,7 @@ private:
   unsigned long pollInterval;
 
 public:
-  virtual int joinOTAA(const char *appEui, const char *appKey, const char *devEui = NULL) {
+  virtual int joinOTAA(const char *appEui, const char *appKey, const char *devEui = NULL, uint32_t timeout = DEFAULT_JOIN_TIMEOUT) {
     YIELD();
     rx.clear();
     changeMode(OTAA);
@@ -294,20 +296,20 @@ public:
     if (devEui != NULL) {
         set(DEV_EUI, devEui);
     }
-    network_joined = join();
+    network_joined = join(timeout);
     delay(1000);
     return network_joined;
   }
 
-  virtual int joinOTAA(String appEui, String appKey) {
-    return joinOTAA(appEui.c_str(), appKey.c_str(), NULL);
+  virtual int joinOTAA(String appEui, String appKey, uint32_t timeout = DEFAULT_JOIN_TIMEOUT) {
+    return joinOTAA(appEui.c_str(), appKey.c_str(), NULL, timeout);
   }
 
-  virtual int joinOTAA(String appEui, String appKey, String devEui) {
-    return joinOTAA(appEui.c_str(), appKey.c_str(), devEui.c_str());
+  virtual int joinOTAA(String appEui, String appKey, String devEui, uint32_t timeout = DEFAULT_JOIN_TIMEOUT) {
+    return joinOTAA(appEui.c_str(), appKey.c_str(), devEui.c_str(), timeout);
   }
 
-  virtual int joinABP(/*const char* nwkId, */const char * devAddr, const char * nwkSKey, const char * appSKey) {
+  virtual int joinABP(/*const char* nwkId, */const char * devAddr, const char * nwkSKey, const char * appSKey, uint32_t timeout = DEFAULT_JOIN_TIMEOUT) {
     YIELD();
     rx.clear();
     changeMode(ABP);
@@ -315,7 +317,7 @@ public:
     set(DEV_ADDR, devAddr);
     set(NWKS_KEY, nwkSKey);
     set(APPS_KEY, appSKey);
-    network_joined = join();
+    network_joined = join(timeout);
     return (getJoinStatus() == 1);
   }
 
@@ -776,10 +778,10 @@ private:
     return true;
   }
 
-  bool join() {
+  bool join(uint32_t timeout) {
     sendAT(GF("+JOIN"));
     sendAT();
-    if (waitResponse(60000L, "+EVENT=1,1") != 1) {
+    if (waitResponse(timeout, "+EVENT=1,1") != 1) {
       return false;
     }
     return true;
