@@ -777,6 +777,7 @@ private:
 
   bool join() {
     sendAT(GF("+JOIN"));
+    sendAT();
     if (waitResponse(60000L, "+EVENT=1,1") != 1) {
       return false;
     }
