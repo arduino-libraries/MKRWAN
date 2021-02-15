@@ -415,7 +415,7 @@ public:
   /*
    * Basic functions
    */
-  bool begin(_lora_band band, uint32_t baud = 19200, uint16_t config = SERIAL_8N2) {
+  bool begin(_lora_band band, uint32_t baud = 9600, uint16_t config = SERIAL_8N1) {
 #ifdef SerialLoRa
     SerialLoRa.begin(baud, config);
     pinMode(LORA_BOOT0, OUTPUT);
@@ -430,7 +430,7 @@ public:
     if (init()) {
         return configureBand(band);
     } else {
-      return begin(band, baud, SERIAL_8N1);
+      return begin(band, 19200, SERIAL_8N1);
     }
     return false;
   }
@@ -470,7 +470,7 @@ public:
     sendAT(GF("+UART="), baud);
   }
 
-  bool autoBaud(unsigned long timeout = 10000L) {
+  bool autoBaud(unsigned long timeout = 5000L) {
     for (unsigned long start = millis(); millis() - start < timeout; ) {
       sendAT(GF(""));
       if (waitResponse(200) == 1) {
