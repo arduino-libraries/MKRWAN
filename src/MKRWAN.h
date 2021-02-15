@@ -426,6 +426,7 @@ public:
     digitalWrite(LORA_RESET, LOW);
     delay(200);
     digitalWrite(LORA_RESET, HIGH);
+    delay(200);
 #endif
     if (init()) {
         return configureBand(band);
