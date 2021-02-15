@@ -287,7 +287,7 @@ private:
   unsigned long pollInterval;
 
 public:
-  virtual int joinOTAA(const char *appEui, const char *appKey, const char *devEui = NULL, uint32_t timeout = DEFAULT_JOIN_TIMEOUT) {
+  virtual int joinOTAA(const char *appEui, const char *appKey, const char *devEui, uint32_t timeout) {
     YIELD();
     rx.clear();
     changeMode(OTAA);
