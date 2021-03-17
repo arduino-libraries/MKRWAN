@@ -561,6 +561,10 @@ public:
 
     DBG("Newmask: ", newMask);
 
+    return sendMask(newMask);
+  }
+
+  bool sendMask(String newMask) {
     sendAT(GF("+CHANMASK="), newMask);
     if (waitResponse() != 1) {
         return false;
