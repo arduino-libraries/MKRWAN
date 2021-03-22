@@ -508,14 +508,24 @@ public:
         DBG("Full channel mask string: ", channel_mask_str);
         sscanf(channel_mask_str.c_str(), "%04hx%04hx%04hx%04hx%04hx%04hx", &channelsMask[0], &channelsMask[1], &channelsMask[2],
                                                     &channelsMask[3], &channelsMask[4], &channelsMask[5]);
-    }
 
-    return channel_mask_str.substring(0, size);
+        return channel_mask_str.substring(0, size);
+    }
+    String str = "0";
+    return str;
   }
 
   int isChannelEnabled(int pos) {
     //Populate channelsMask array
-    getChannelMask();
+    int max_retry = 3;
+    int retry = 0;
+    while (retry < max_retry) {
+      String mask = getChannelMask();
+      if (mask != "0") {
+        break;
+      }
+      retry++;
+    }
 
     int row = pos / 16;
     int col = pos % 16;
@@ -528,7 +538,15 @@ public:
 
   bool disableChannel(int pos) {
     //Populate channelsMask array
-    getChannelMask();
+    int max_retry = 3;
+    int retry = 0;
+    while (retry < max_retry) {
+      String mask = getChannelMask();
+      if (mask != "0") {
+        break;
+      }
+      retry++;
+    }
 
     int row = pos / 16;
     int col = pos % 16;
@@ -540,6 +558,17 @@ public:
   }
 
   bool enableChannel(int pos) {
+    //Populate channelsMask array
+    int max_retry = 3;
+    int retry = 0;
+    while (retry < max_retry) {
+      String mask = getChannelMask();
+      if (mask != "0") {
+        break;
+      }
+      retry++;
+    }
+
     int row = pos / 16;
     int col = pos % 16;
     uint16_t mask = (uint16_t)(1 << col);
