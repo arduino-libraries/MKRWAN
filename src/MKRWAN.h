@@ -229,6 +229,9 @@ static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
 typedef enum {
     AS923 = 0,
     AU915,
+    CN470,
+    CN779,
+    EU433,
     EU868 = 5,
     KR920,
     IN865,
@@ -285,6 +288,10 @@ private:
   String        fw_version;
   unsigned long lastPollTime;
   unsigned long pollInterval;
+  int           mask_size;
+  uint16_t      channelsMask[6];
+  String        channel_mask_str;
+  _lora_band    region;
 
 public:
   virtual int joinOTAA(const char *appEui, const char *appKey, const char *devEui, uint32_t timeout) {
@@ -430,6 +437,7 @@ public:
     digitalWrite(LORA_RESET, HIGH);
     delay(200);
 #endif
+    region = band;
     if (init()) {
         return configureBand(band);
     } else {
@@ -466,6 +474,131 @@ public:
     if (band == EU868 && isArduinoFW()) {
         return dutyCycle(true);
     }
+    return true;
+  }
+
+  int getChannelMaskSize(_lora_band band) {
+    switch (band)
+    {
+      case AS923:
+      case CN779:
+      case EU433:
+      case EU868:
+      case KR920:
+      case IN865:
+        mask_size = 1;
+        break;
+      case AU915:
+      case CN470:
+      case US915:
+      case US915_HYBRID:
+        mask_size = 6;
+        break;
+      default:
+        break;
+    }
+    return mask_size;
+  }
+
+  String getChannelMask() {
+    int size = 4*getChannelMaskSize(region);
+    sendAT(GF("+CHANMASK?"));
+    if (waitResponse("+OK=") == 1) {
+        channel_mask_str = stream.readStringUntil('\r');
+        DBG("Full channel mask string: ", channel_mask_str);
+        sscanf(channel_mask_str.c_str(), "%04hx%04hx%04hx%04hx%04hx%04hx", &channelsMask[0], &channelsMask[1], &channelsMask[2],
+                                                    &channelsMask[3], &channelsMask[4], &channelsMask[5]);
+
+        return channel_mask_str.substring(0, size);
+    }
+    String str = "0";
+    return str;
+  }
+
+  int isChannelEnabled(int pos) {
+    //Populate channelsMask array
+    int max_retry = 3;
+    int retry = 0;
+    while (retry < max_retry) {
+      String mask = getChannelMask();
+      if (mask != "0") {
+        break;
+      }
+      retry++;
+    }
+
+    int row = pos / 16;
+    int col = pos % 16;
+    uint16_t channel = (uint16_t)(1 << col);
+
+    channel = ((channelsMask[row] & channel) >> col);
+
+    return channel;
+  }
+
+  bool disableChannel(int pos) {
+    //Populate channelsMask array
+    int max_retry = 3;
+    int retry = 0;
+    while (retry < max_retry) {
+      String mask = getChannelMask();
+      if (mask != "0") {
+        break;
+      }
+      retry++;
+    }
+
+    int row = pos / 16;
+    int col = pos % 16;
+    uint16_t mask = ~(uint16_t)(1 << col);
+
+    channelsMask[row] = channelsMask[row] & mask;
+
+    return sendMask();
+  }
+
+  bool enableChannel(int pos) {
+    //Populate channelsMask array
+    int max_retry = 3;
+    int retry = 0;
+    while (retry < max_retry) {
+      String mask = getChannelMask();
+      if (mask != "0") {
+        break;
+      }
+      retry++;
+    }
+
+    int row = pos / 16;
+    int col = pos % 16;
+    uint16_t mask = (uint16_t)(1 << col);
+
+    channelsMask[row] = channelsMask[row] | mask;
+
+    return sendMask();
+  }
+
+  bool sendMask() {
+    String newMask;
+
+    /* Convert channel mask into string */
+    for (int i = 0; i < 6; i++) {
+      char hex[4];
+      sprintf(hex, "%04x", channelsMask[i]);
+      newMask.concat(hex);
+    }
+
+    DBG("Newmask: ", newMask);
+
+    return sendMask(newMask);
+  }
+
+  bool sendMask(String newMask) {
+    sendAT(GF("+CHANMASK="), newMask);
+    if (waitResponse() != 1) {
+        return false;
+    }
+
     return true;
   }
 
