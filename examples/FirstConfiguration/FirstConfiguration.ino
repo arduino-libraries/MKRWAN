@@ -21,7 +21,7 @@ void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
   while (!Serial);
-  Serial.println("Welcome to MKRWAN1300/1310 first configuration sketch");
+  Serial.println("Welcome to MKR WAN 1300/1310 first configuration sketch");
   Serial.println("Register to your favourite LoRa network and we are ready to go!");
   // change this to your regional band (eg. US915, AS923, ...)
   if (!modem.begin(EU868)) {
