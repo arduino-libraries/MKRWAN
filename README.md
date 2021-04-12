@@ -1,6 +1,6 @@
 # MKRWAN
 
-[![Build Status](https://travis-ci.org/arduino-libraries/MKRWAN.svg?branch=master)](https://travis-ci.org/arduino-libraries/MKRWAN)
+[![Compile Examples status](https://github.com/arduino-libraries/MKRWAN/actions/workflows/compile-examples.yml/badge.svg)](https://github.com/arduino-libraries/MKRWAN/actions/workflows/compile-examples.yml)
 
 Provides APIs to communicate with LoRa and LoraWAN networks
 
