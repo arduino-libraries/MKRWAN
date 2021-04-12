@@ -1,6 +1,7 @@
 # MKRWAN
 
 [![Compile Examples status](https://github.com/arduino-libraries/MKRWAN/actions/workflows/compile-examples.yml/badge.svg)](https://github.com/arduino-libraries/MKRWAN/actions/workflows/compile-examples.yml)
+[![Spell Check status](https://github.com/arduino-libraries/MKRWAN/actions/workflows/spell-check.yml/badge.svg)](https://github.com/arduino-libraries/MKRWAN/actions/workflows/spell-check.yml)
 
 Provides APIs to communicate with LoRa and LoraWAN networks
 
