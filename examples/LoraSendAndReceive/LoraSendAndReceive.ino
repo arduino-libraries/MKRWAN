@@ -38,8 +38,8 @@ void setup() {
 
   // Set poll interval to 60 secs.
   modem.minPollInterval(60);
-  // NOTE: independently by this setting the modem will
-  // not allow to send more than one message every 2 minutes,
+  // NOTE: independent of this setting, the modem will
+  // not allow sending more than one message every 2 minutes,
   // this is enforced by firmware and can not be changed.
 }
 

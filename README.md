@@ -1,8 +1,10 @@
 # MKRWAN
 
-[![Build Status](https://travis-ci.org/arduino-libraries/MKRWAN.svg?branch=master)](https://travis-ci.org/arduino-libraries/MKRWAN)
+[![Check Arduino status](https://github.com/arduino-libraries/MKRWAN/actions/workflows/check-arduino.yml/badge.svg)](https://github.com/arduino-libraries/MKRWAN/actions/workflows/check-arduino.yml)
+[![Compile Examples status](https://github.com/arduino-libraries/MKRWAN/actions/workflows/compile-examples.yml/badge.svg)](https://github.com/arduino-libraries/MKRWAN/actions/workflows/compile-examples.yml)
+[![Spell Check status](https://github.com/arduino-libraries/MKRWAN/actions/workflows/spell-check.yml/badge.svg)](https://github.com/arduino-libraries/MKRWAN/actions/workflows/spell-check.yml)
 
-Provides APIs to communicate with LoRa and LoraWAN networks
+Provides APIs to communicate with LoRa and LoRaWAN networks
 
 For more information about this library please visit us at
 https://www.arduino.cc/en/Reference/MKRWAN
