@@ -947,6 +947,10 @@ private:
     if (waitResponse(timeout, "+EVENT=1,1") != 1) {
       return false;
     }
+    // Second answer, always returns +OK
+    if (waitResponse() != 1) {
+      return false;
+    }
     return true;
   }
 
