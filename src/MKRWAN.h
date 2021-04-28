@@ -1041,13 +1041,13 @@ private:
     return stream.readStringUntil('\r').toInt();
   }
 
-  size_t getJoinStatus() {
+  int getJoinStatus() {
+	int jst = 0;
     sendAT(GF("+NJS?"));
-    if (waitResponse(2000L) != 1) {
-      return 0;
+    if (waitResponse(2000L, "+OK=") == 1) {
+        jst = stream.readStringUntil('\r').toInt();
     }
-    streamSkipUntil('=');
-    return stream.readStringUntil('\r').toInt();
+    return jst;
   }
 
   /* Utilities */
