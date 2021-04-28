@@ -587,7 +587,7 @@ public:
 
     /* Convert channel mask into string */
     for (int i = 0; i < 6; i++) {
-      char hex[4];
+      char hex[5];
       sprintf(hex, "%04x", channelsMask[i]);
       newMask.concat(hex);
     }
