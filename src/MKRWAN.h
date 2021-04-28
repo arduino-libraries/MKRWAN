@@ -275,7 +275,11 @@ public:
 #else
     : stream(stream), lastPollTime(millis()), pollInterval(300000)
 #endif
-    {}
+    {
+	  network_joined = false;
+	  mask_size = 1;
+	  region = EU868;
+    }
 
 public:
   typedef SerialFifo<uint8_t, LORA_RX_BUFFER> RxFifo;
