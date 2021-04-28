@@ -1041,11 +1041,11 @@ private:
     return stream.readStringUntil('\r').toInt();
   }
 
-  int getJoinStatus() {
-	int jst = 0;
+  bool getJoinStatus() {
+	bool jst = 0;
     sendAT(GF("+NJS?"));
     if (waitResponse(2000L, "+OK=") == 1) {
-        jst = stream.readStringUntil('\r').toInt();
+        jst = (stream.readStringUntil('\r').toInt());
     }
     return jst;
   }
