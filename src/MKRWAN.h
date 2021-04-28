@@ -693,6 +693,15 @@ public:
     return true;
   }
 
+  int32_t getPower() {
+    int32_t fcd = -1;
+    sendAT(GF("+RFPOWER?"));
+    if (waitResponse("+OK=") == 1) {
+        fcd = stream.readStringUntil('\r').toInt();
+    }
+    return fcd;
+  }
+
 #ifdef SerialLoRa
   // Sends the modem into dumb mode, so the Semtech chip can be controlled directly
   // The only way to exit this mode is through a begin()
