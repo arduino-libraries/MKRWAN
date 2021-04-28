@@ -223,7 +223,7 @@ static const char LORA_ERROR_NO_NETWORK[] = "+ERR_NO_NETWORK\r";
 static const char LORA_ERROR_RX[] = "+ERR_RX\r";
 static const char LORA_ERROR_UNKNOWN[] = "+ERR_UNKNOWN\r";
 
-static const char ARDUINO_FW_VERSION[] = "ARD-078 1.2.1";
+static const char ARDUINO_FW_VERSION[] = "ARD-078 1.2.3";
 static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
 
 typedef enum {
