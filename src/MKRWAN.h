@@ -882,7 +882,7 @@ private:
 
     stream.write((uint8_t*)buff, len);
 
-    int8_t rc = waitResponse( GFP(LORA_OK), GFP(LORA_ERROR), GFP(LORA_ERROR_PARAM), GFP(LORA_ERROR_BUSY), GFP(LORA_ERROR_OVERFLOW), GFP(LORA_ERROR_NO_NETWORK), GFP(LORA_ERROR_RX), GFP(LORA_ERROR_UNKNOWN) );
+    int8_t rc = waitResponse();
     if (rc == 1) {            ///< OK
       return len;
     } else if ( rc > 1 ) {    ///< LORA ERROR
@@ -942,22 +942,22 @@ private:
    * 
    * @param timeout the time in milliseconds to wait for a response
    * @param data a string containing the response to wait for
-   * @param r1 response string
-   * @param r2 response string
-   * @param r3 response string
-   * @param r4 response string
-   * @param r5 response string
-   * @param r6 response string
-   * @param r7 response string
-   * @param r8 response string
+   * @param r1 response string defaults to LORA_OK
+   * @param r2 response string defaults to LORA_ERROR
+   * @param r3 response string defaults to LORA_ERROR_PARAM
+   * @param r4 response string defaults to LORA_ERROR_BUSY
+   * @param r5 response string defaults to LORA_ERROR_OVERFLOW
+   * @param r6 response string defaults to LORA_ERROR_NO_NETWORK
+   * @param r7 response string defaults to LORA_ERROR_RX
+   * @param r8 response string defaults to LORA_ERROR_UNKNOWN
    * @return int8_t   n if the response = r<n>
    *                  99 if the response ends with "+RECV="
    *                  -1 if timeout
    */
   int8_t waitResponse(uint32_t timeout, String& data,
                        ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
-                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
-                       ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
+                       ConstStr r3=GFP(LORA_ERROR_PARAM), ConstStr r4=GFP(LORA_ERROR_BUSY), ConstStr r5=GFP(LORA_ERROR_OVERFLOW),
+                       ConstStr r6=GFP(LORA_ERROR_NO_NETWORK), ConstStr r7=GFP(LORA_ERROR_RX), ConstStr r8=GFP(LORA_ERROR_UNKNOWN))
   {
     data.reserve(64);
     int8_t index = -1;
@@ -1036,16 +1036,16 @@ finish:
 
   int8_t waitResponse(uint32_t timeout,
                        ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
-                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
-                       ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
+                       ConstStr r3=GFP(LORA_ERROR_PARAM), ConstStr r4=GFP(LORA_ERROR_BUSY), ConstStr r5=GFP(LORA_ERROR_OVERFLOW),
+                       ConstStr r6=GFP(LORA_ERROR_NO_NETWORK), ConstStr r7=GFP(LORA_ERROR_RX), ConstStr r8=GFP(LORA_ERROR_UNKNOWN))
   {
     String data;
     return waitResponse(timeout, data, r1, r2, r3, r4, r5, r6, r7, r8);
   }
 
   int8_t waitResponse(ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
-                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
-                       ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
+					  ConstStr r3=GFP(LORA_ERROR_PARAM), ConstStr r4=GFP(LORA_ERROR_BUSY), ConstStr r5=GFP(LORA_ERROR_OVERFLOW),
+					  ConstStr r6=GFP(LORA_ERROR_NO_NETWORK), ConstStr r7=GFP(LORA_ERROR_RX), ConstStr r8=GFP(LORA_ERROR_UNKNOWN))
   {
     return waitResponse(1000, r1, r2, r3, r4, r5, r6, r7, r8);
   }
