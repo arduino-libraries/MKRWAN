@@ -936,7 +936,17 @@ private:
     DBG("### AT:", cmd...);
   }
 
-  // TODO: Optimize this!
+  int char2int(char input)
+  {
+    if(input >= '0' && input <= '9')
+      return input - '0';
+    if(input >= 'A' && input <= 'F')
+      return input - 'A' + 10;
+    if(input >= 'a' && input <= 'f')
+      return input - 'a' + 10;
+    return 0;
+  }
+
   /**
    * @brief wait for a response from the modem.
    * 
@@ -1011,6 +1021,25 @@ private:
 			  length = 0;
 			  continue;
 			}
+            else if (data.endsWith("+RECVB") && a == '=') {
+  			  (void)stream.readStringUntil(',').toInt();
+			  length = stream.readStringUntil('\r').toInt();
+			  (void)streamSkipUntil('\n');
+			  (void)streamSkipUntil('\n');
+			  char Hi = 0;
+			  for (int i = 0; i < length*2;) {
+				if (stream.available()) {
+					if (!(i%2))
+						Hi=char2int(stream.read()) * 0x10;
+					else
+						rx.put(char2int(stream.read()) + Hi);
+					i++;
+				}
+			  }
+			  data = "";
+			  length = 0;
+			  continue;
+            }
         }
         data += (char)stream.read();
         length++;
