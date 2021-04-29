@@ -215,15 +215,16 @@ const T& Max(const T& a, const T& b)
 
 #define LORA_NL "\r"
 static const char LORA_OK[] = "+OK";
-static const char LORA_ERROR[] = "+ERR\r";
-static const char LORA_ERROR_PARAM[] = "+ERR_PARAM\r";
-static const char LORA_ERROR_BUSY[] = "+ERR_BUSY\r";
-static const char LORA_ERROR_OVERFLOW[] = "+ERR_PARAM_OVERFLOW\r";
-static const char LORA_ERROR_NO_NETWORK[] = "+ERR_NO_NETWORK\r";
-static const char LORA_ERROR_RX[] = "+ERR_RX\r";
-static const char LORA_ERROR_UNKNOWN[] = "+ERR_UNKNOWN\r";
+static const char LORA_ERROR[] = "+ERR";
+static const char LORA_ERROR_PARAM[] = "+ERR_PARAM";
+static const char LORA_ERROR_BUSY[] = "+ERR_BUSY";
+static const char LORA_ERROR_OVERFLOW[] = "+ERR_PARAM_OVERFLOW";
+static const char LORA_ERROR_NO_NETWORK[] = "+ERR_NO_NETWORK";
+static const char LORA_ERROR_RX[] = "+ERR_RX";
+static const char LORA_ERROR_UNKNOWN[] = "+ERR_UNKNOWN";
 
 static const char ARDUINO_FW_VERSION[] = "ARD-078 1.2.4";
+static const char ARDUINO_FW_VERSION_AT[] = "ARD-078 1.2.4";
 static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
 
 typedef enum {
@@ -279,6 +280,7 @@ public:
 	  network_joined = false;
 	  mask_size = 1;
 	  region = EU868;
+	  compat_mode = false;
     }
 
 public:
@@ -296,6 +298,7 @@ private:
   uint16_t      channelsMask[6];
   String        channel_mask_str;
   _lora_band    region;
+  bool			compat_mode;
 
 public:
   virtual int joinOTAA(const char *appEui, const char *appKey, const char *devEui, uint32_t timeout) {
@@ -463,21 +466,17 @@ public:
   }
 
   bool configureClass(_lora_class _class) {
-    sendAT(GF("+CLASS="), (char)_class);
-    if (waitResponse() != 1) {
-        return false;
-    }
-    return true;
+    return setValue(GF("+CLASS="), (char)_class);
   }
 
   bool configureBand(_lora_band band) {
-    sendAT(GF("+BAND="), band);
-    if (waitResponse() != 1) {
+    if (setValue(GF("+BAND="), band)) {
         return false;
     }
     if (band == EU868 && isArduinoFW()) {
         return dutyCycle(true);
     }
+
     return true;
   }
 
@@ -507,7 +506,8 @@ public:
   String getChannelMask() {
     int size = 4*getChannelMaskSize(region);
     sendAT(GF("+CHANMASK?"));
-    if (waitResponse("+OK=") == 1) {
+	if ((!compat_mode && waitResponse(GF("+CHANMASK?")) == 1)
+			|| (compat_mode && waitResponse() == 1)) {
         channel_mask_str = stream.readStringUntil('\r');
         DBG("Full channel mask string: ", channel_mask_str);
         sscanf(channel_mask_str.c_str(), "%04hx%04hx%04hx%04hx%04hx%04hx", &channelsMask[0], &channelsMask[1], &channelsMask[2],
@@ -598,12 +598,7 @@ public:
   }
 
   bool sendMask(String newMask) {
-    sendAT(GF("+CHANMASK="), newMask);
-    if (waitResponse() != 1) {
-        return false;
-    }
-
-    return true;
+    return setValue(GF("+CHANMASK="), newMask);
   }
 
   void setBaud(unsigned long baud) {
@@ -623,25 +618,15 @@ public:
   }
 
   String version() {
-    sendAT(GF("+DEV?"));
-    if (waitResponse("+OK=") == 1) {
-        fw_version = stream.readStringUntil('\r');
-    }
-    sendAT(GF("+VER?"));
-    if (waitResponse("+OK=") == 1) {
-        fw_version += " " + stream.readStringUntil('\r');
-    }
+    fw_version = getStringValue(GF("+DEV?"))
+    		+ " "
+    		+ getStringValue(GF("+VER?"));
 
     return fw_version;
   }
 
   String deviceEUI() {
-    String eui;
-    sendAT(GF("+DEVEUI?"));
-    if (waitResponse("+OK=") == 1) {
-        eui = stream.readStringUntil('\r');
-    }
-    return eui;
+    return getStringValue(GF("+DEVEUI?"));
   }
 
   void maintain() {
@@ -679,27 +664,23 @@ public:
     if (waitResponse(10000L, "+EVENT=0,0") != 1) {
       return false;
     }
+    // Second answer, always returns an additional +OK on new firmware versions
+    (void)streamSkipUntil('\r');
     delay(1000);
     return init();
   }
 
   bool power(_rf_mode mode, uint8_t transmitPower) { // transmitPower can be between 0 and 5
-    sendAT(GF("+RFPOWER="), mode,",",transmitPower);
-    if (waitResponse() != 1) {
+	sendAT(GF("+RFPOWER"), mode,",",transmitPower);
+	if ((!compat_mode && waitResponse(GF("+RFPOWER")) == 1)
+			|| (compat_mode && waitResponse() == 1))
       return false;
-    } else {
-        String resp = stream.readStringUntil('\r');
-    }
+    String resp = stream.readStringUntil('\r');
     return true;
   }
 
   int32_t getPower() {
-    int32_t fcd = -1;
-    sendAT(GF("+RFPOWER?"));
-    if (waitResponse("+OK=") == 1) {
-        fcd = stream.readStringUntil('\r').toInt();
-    }
-    return fcd;
+    return getIntValue(GF("+RFPOWER?"));
   }
 
 #ifdef SerialLoRa
@@ -726,43 +707,23 @@ public:
 #endif
 
   bool dutyCycle(bool on) {
-    sendAT(GF("+DUTYCYCLE="), on);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+DUTYCYCLE="), on);
   }
 
   bool setPort(uint8_t port) {
-    sendAT(GF("+PORT="), port);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+PORT="), port);
   }
 
   bool publicNetwork(bool publicNetwork) {
-    sendAT(GF("+NWK="), publicNetwork);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+NWK="), publicNetwork);
   }
 
   bool sleep(bool on = true) {
-    sendAT(GF("+SLEEP="), on);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+SLEEP="), on);
   }
 
   bool format(bool hexMode) {
-    sendAT(GF("+DFORMAT="), hexMode);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+DFORMAT="), hexMode);
   }
 
 /*
@@ -777,150 +738,71 @@ public:
 */
 
   bool dataRate(uint8_t dr) {
-    sendAT(GF("+DR="), dr);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+DR="), dr);
   }
 
   int getDataRate() {
-    int dr = -1;
-    sendAT(GF("+DR?"));
-    if (waitResponse("+OK=") == 1) {
-        dr = stream.readStringUntil('\r').toInt();
-    }
-    return dr;
+    return (int)getIntValue(GF("+DR?"));
   }
 
   bool setADR(bool adr) {
-    sendAT(GF("+ADR="), adr);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+ADR="), adr);
   }
 
   int getADR() {
-    int adr = -1;
-    sendAT(GF("+ADR?"));
-    if (waitResponse("+OK=") == 1) {
-        adr = stream.readStringUntil('\r').toInt();
-    }
-    return adr;
+    return (int)getIntValue(GF("+ADR?"));
   }
 
   String getDevAddr() {
-    String devaddr = "";
-    sendAT(GF("+DEVADDR?"));
-    if (waitResponse("+OK=") == 1) {
-        devaddr = stream.readStringUntil('\r');
-    }
-    return devaddr;
+    return getStringValue(GF("+DEVADDR?"));
   }
 
   String getNwkSKey() {
-    String nwkskey = "";
-    sendAT(GF("+NWKSKEY?"));
-    if (waitResponse("+OK=") == 1) {
-        nwkskey = stream.readStringUntil('\r');
-    }
-    return nwkskey;
+    return getStringValue(GF("+NWKSKEY?"));
   }
 
   String getAppSKey() {
-    String appskey = "";
-    sendAT(GF("+APPSKEY?"));
-    if (waitResponse("+OK=") == 1) {
-        appskey = stream.readStringUntil('\r');
-    }
-    return appskey;
+    return getStringValue(GF("+APPSKEY?"));
   }
 
   int getRX2DR() {
-    int dr = -1;
-    sendAT(GF("+RX2DR?"));
-    if (waitResponse("+OK=") == 1) {
-        dr = stream.readStringUntil('\r').toInt();
-    }
-    return dr;
+    return (int)getIntValue(GF("+RX2DR?"));
   }
 
   bool setRX2DR(uint8_t dr) {
-    sendAT(GF("+RX2DR="),dr);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+RX2DR="),dr);
   }
 
-  uint32_t getRX2Freq() {
-    int freq = -1;
-    sendAT(GF("+RX2FQ?"));
-    if (waitResponse("+OK=") == 1) {
-        freq = stream.readStringUntil('\r').toInt();
-    }
-    return freq;
+  int32_t getRX2Freq() {
+    return getIntValue(GF("+RX2FQ?"));
   }
 
   bool setRX2Freq(uint32_t freq) {
-    sendAT(GF("+RX2FQ="),freq);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+RX2FQ="),freq);
   }
 
   bool setFCU(uint16_t fcu) {
-    sendAT(GF("+FCU="), fcu);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+FCU="), fcu);
   }
 
   int32_t getFCU() {
-    int32_t fcu = -1;
-    sendAT(GF("+FCU?"));
-    if (waitResponse("+OK=") == 1) {
-        fcu = stream.readStringUntil('\r').toInt();
-    }
-    return fcu;
+    return getIntValue(GF("+FCU?"));
   }
 
   bool setFCD(uint16_t fcd) {
-    sendAT(GF("+FCD="), fcd);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+FCD="), fcd);
   }
 
   int32_t getFCD() {
-    int32_t fcd = -1;
-    sendAT(GF("+FCD?"));
-    if (waitResponse("+OK=") == 1) {
-        fcd = stream.readStringUntil('\r').toInt();
-    }
-    return fcd;
+    return getIntValue(GF("+FCD?"));
   }
 
   int32_t getRSSI() {
-    int32_t rssi = -1;
-    sendAT(GF("+RSSI?"));
-    if (waitResponse("+OK=") == 1) {
-        rssi = stream.readStringUntil('\r').toInt();
-    }
-    return rssi;
+    return getIntValue(GF("+RSSI?"));
   }
 
   int32_t getSNR() {
-    int32_t snr = -1;
-    sendAT(GF("+SNR?"));
-    if (waitResponse("+OK=") == 1) {
-        snr = stream.readStringUntil('\r').toInt();
-    }
-    return snr;
+    return getIntValue(GF("+SNR?"));
   }
 
 private:
@@ -930,25 +812,17 @@ private:
   }
 
   bool isLatestFW() {
+	compat_mode = (fw_version.compareTo(ARDUINO_FW_VERSION_AT) < 0);
     return (fw_version == ARDUINO_FW_VERSION);
   }
 
   bool changeMode(_lora_mode mode) {
-    sendAT(GF("+MODE="), mode);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF("+MODE="), mode);
   }
 
   bool join(uint32_t timeout) {
     sendAT(GF("+JOIN"));
-    sendAT();
     if (waitResponse(timeout, "+EVENT=1,1") != 1) {
-      return false;
-    }
-    // Second answer, always returns +OK
-    if (waitResponse() != 1) {
       return false;
     }
     return true;
@@ -957,33 +831,22 @@ private:
   bool set(_lora_property prop, const char* value) {
     switch (prop) {
         case APP_EUI:
-            sendAT(GF("+APPEUI="), value);
-            break;
+        	return setValue(GF("+APPEUI="), value);
         case APP_KEY:
-            sendAT(GF("+APPKEY="), value);
-            break;
+        	return setValue(GF("+APPKEY="), value);
         case DEV_EUI:
-            sendAT(GF("+DEVEUI="), value);
-            break;
+        	return setValue(GF("+DEVEUI="), value);
         case DEV_ADDR:
-            sendAT(GF("+DEVADDR="), value);
-            break;
+        	return setValue(GF("+DEVADDR="), value);
         case NWKS_KEY:
-            sendAT(GF("+NWKSKEY="), value);
-            break;
+        	return setValue(GF("+NWKSKEY="), value);
         case NWK_ID:
-            sendAT(GF("+IDNWK="), value);
-            break;
+            return setValue(GF("+IDNWK="), value);
         case APPS_KEY:
-            sendAT(GF("+APPSKEY="), value);
-            break;
+        	return setValue(GF("+APPSKEY="), value);
         default:
             return false;
     }
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
   }
 
   /**
@@ -1033,21 +896,13 @@ private:
     if (isArduinoFW()) {
       return 64;
     }
-    sendAT(GF("+MSIZE?"));
-    if (waitResponse(2000L) != 1) {
-      return 0;
-    }
-    streamSkipUntil('=');
-    return stream.readStringUntil('\r').toInt();
+
+    int size = getIntValue(GF("+MSIZE?"));
+    return (size < 0) ? 0 : (size_t)size;
   }
 
   bool getJoinStatus() {
-	bool jst = 0;
-    sendAT(GF("+NJS?"));
-    if (waitResponse(2000L, "+OK=") == 1) {
-        jst = (stream.readStringUntil('\r').toInt());
-    }
-    return jst;
+    return (getIntValue(GF("+NJS?")));
   }
 
   /* Utilities */
@@ -1107,53 +962,68 @@ private:
     data.reserve(64);
     int8_t index = -1;
     int length = 0;
+    int a = 0;
     unsigned long startMillis = millis();
     do {
       YIELD();
       while (stream.available() > 0) {
-        int a = streamRead();
+        a = stream.peek();
         if (a < 0) continue;
-        data += (char)a;
-        if (r1 && data.endsWith(r1)) {
-          index = 1;
-          goto finish;
-        } else if (r2 && data.endsWith(r2)) {
-          index = 2;
-          goto finish;
-        } else if (r3 && data.endsWith(r3)) {
-          index = 3;
-          goto finish;
-        } else if (r4 && data.endsWith(r4)) {
-          index = 4;
-          goto finish;
-        } else if (r5 && data.endsWith(r5)) {
-          index = 5;
-          goto finish;
-        } else if (r6 && data.endsWith(r6)) {
-          index = 6;
-          goto finish;
-        } else if (r7 && data.endsWith(r7)) {
-          index = 7;
-          goto finish;
-        } else if (r8 && data.endsWith(r8)) {
-          index = 8;
-          goto finish;
-        } else if (data.endsWith("+RECV=")) {
-          data = "";
-          stream.readStringUntil(',').toInt();
-          length = stream.readStringUntil('\r').toInt();
-          streamSkipUntil('\n');
-          streamSkipUntil('\n');
-          for (int i = 0; i < length;) {
-            if (stream.available()) {
-                rx.put(stream.read());
-                i++;
-            }
-          }
+        if (a == '=' || a == '\r'
+        		|| (a == '+' && data.length() > 0)) {
+			DBG("### Data string:", data);
+			if (r1 && data.endsWith(r1)) {
+			  index = 1;
+			  goto finish;
+			} else if (r2 && data.endsWith(r2)) {
+			  index = 2;
+			  goto finish;
+			} else if (r3 && data.endsWith(r3)) {
+			  index = 3;
+			  goto finish;
+			} else if (r4 && data.endsWith(r4)) {
+			  index = 4;
+			  goto finish;
+			} else if (r5 && data.endsWith(r5)) {
+			  index = 5;
+			  goto finish;
+			} else if (r6 && data.endsWith(r6)) {
+			  index = 6;
+			  goto finish;
+			} else if (r7 && data.endsWith(r7)) {
+			  index = 7;
+			  goto finish;
+			} else if (r8 && data.endsWith(r8)) {
+			  index = 8;
+			  goto finish;
+			} else if (data.endsWith("+RECV") && a == '=') {
+			  (void)stream.readStringUntil(',').toInt();
+			  length = stream.readStringUntil('\r').toInt();
+			  (void)streamSkipUntil('\n');
+			  (void)streamSkipUntil('\n');
+			  for (int i = 0; i < length;) {
+				if (stream.available()) {
+					rx.put(stream.read());
+					i++;
+				}
+			  }
+			  data = "";
+			  length = 0;
+			  continue;
+			}
+        }
+        data += (char)stream.read();
+        length++;
+        if (length >= 64){
+        	DBG("### Data string too long:", data);
+        	return index;
         }
       }
     } while (millis() - startMillis < timeout);
 finish:
+	if (a != '+') // no follow-up command, get terminator from buffer
+		(void)stream.read();
+
     if (!index) {
       data.trim();
       if (data.length()) {
@@ -1178,6 +1048,32 @@ finish:
                        ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
   {
     return waitResponse(1000, r1, r2, r3, r4, r5, r6, r7, r8);
+  }
+
+  String getStringValue(ConstStr cmd){
+	String value = "";
+	sendAT(cmd);
+	if ((!compat_mode && waitResponse(cmd) == 1)
+			|| (compat_mode && waitResponse() == 1)) {
+		value = stream.readStringUntil('\r');
+	}
+	return value;
+  }
+
+  int32_t getIntValue(ConstStr cmd){
+	int32_t value = -1;
+	sendAT(cmd);
+	if ((!compat_mode && waitResponse(cmd) == 1)
+			|| (compat_mode && waitResponse() == 1)) {
+		value = stream.readStringUntil('\r').toInt();
+	}
+	return value;
+  }
+
+  template<typename T, typename U>
+  bool setValue(T cmd, U value) {
+	sendAT(cmd, value);
+	return (waitResponse() == 1);
   }
 
 };
