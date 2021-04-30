@@ -664,8 +664,6 @@ public:
     if (waitResponse(10000L, "+EVENT=0,0") != 1) {
       return false;
     }
-    // Second answer, always returns an additional +OK on new firmware versions
-    (void)streamSkipUntil('\r');
     delay(1000);
     return init();
   }
@@ -822,9 +820,11 @@ private:
 
   bool join(uint32_t timeout) {
     sendAT(GF("+JOIN"));
+    sendAT();
     if (waitResponse(timeout, "+EVENT=1,1") != 1) {
       return false;
     }
+    (void)streamSkipUntil('\r');
     return true;
   }
 
