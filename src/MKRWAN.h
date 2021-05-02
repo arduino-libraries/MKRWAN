@@ -213,6 +213,66 @@ const T& Max(const T& a, const T& b)
   #define LORA_RX_BUFFER 256
 #endif
 
+/* AT Command strings. Commands start with AT */
+#define AT_RESET      "+REBOOT"
+#define AT_BAND       "+BAND"
+#define AT_DEUI       "+DEVEUI"
+#define AT_DADDR      "+DEVADDR"
+#define AT_APPKEY     "+APPKEY"
+#define AT_NWKSKEY    "+NWKSKEY"
+#define AT_APPSKEY    "+APPSKEY"
+#define AT_APPEUI     "+APPEUI"
+#define AT_ADR        "+ADR"
+#define AT_TXP        "+RFPOWER"
+#define AT_FORMAT     "+DFORMAT"
+#define AT_DR         "+DR"
+#define AT_DCS        "+DUTYCYCLE"
+#define AT_PNM        "+NWK"
+#define AT_RX2FQ      "+RX2FQ"
+#define AT_RX2DR      "+RX2DR"
+#define AT_RX1DL      "+RX1DL"
+#define AT_RX2DL      "+RX2DL"
+#define AT_JN1DL      "+JN1DL"
+#define AT_JN2DL      "+JN2DL"
+#define AT_NJM        "+MODE"
+#define AT_NWKID      "+IDNWK"
+#define AT_FCU        "+FCU"
+#define AT_FCD        "+FCD"
+#define AT_CLASS      "+CLASS"
+#define AT_JOIN       "+JOIN"
+#define AT_NJS        "+NJS"
+#define AT_SENDB      "+SENDB"
+#define AT_SEND       "+SEND"
+#define AT_RECVB      "+RECVB"
+#define AT_RECV       "+RECV"
+#define AT_UTX		  "+UTX"
+#define AT_CTX		  "+CTX"
+#define AT_PORT       "+PORT"
+#define AT_VER        "+VER"
+#define AT_DEV        "+DEV"
+#define AT_CFM        "+CFM"
+#define AT_CFS        "+CFS"
+#define AT_SNR        "+SNR"
+#define AT_RSSI       "+RSSI"
+#define AT_BAT        "+BAT"
+#define AT_TRSSI      "+TRSSI"
+#define AT_TTONE      "+TTONE"
+#define AT_TTLRA      "+TTLRA"
+#define AT_TRLRA      "+TRLRA"
+#define AT_TCONF      "+TCONF"
+#define AT_TOFF       "+TOFF"
+#define AT_CERTIF     "+CERTIF"
+#define AT_CHANMASK   "+CHANMASK"
+#define AT_CHANDEFMASK "+CHANDEFMASK"
+
+#define AT_EVENT	  "+EVENT"
+#define AT_UART		  "+UART"
+#define AT_FACNEW	  "+FACNEW"
+#define AT_SLEEP	  "+SLEEP"
+#define AT_MSIZE	  "+MSIZE"
+#define AT_EQ		  "="
+#define AT_QM		  "?"
+
 #define LORA_NL "\r"
 static const char LORA_OK[] = "+OK";
 static const char LORA_ERROR[] = "+ERR";
@@ -281,6 +341,7 @@ public:
 	  mask_size = 1;
 	  region = EU868;
 	  compat_mode = false;
+	  msize = 64;	// default for arduino
     }
 
 public:
@@ -299,6 +360,7 @@ private:
   String        channel_mask_str;
   _lora_band    region;
   bool			compat_mode;
+  size_t		msize;
 
 public:
   virtual int joinOTAA(const char *appEui, const char *appKey, const char *devEui, uint32_t timeout) {
@@ -466,11 +528,11 @@ public:
   }
 
   bool configureClass(_lora_class _class) {
-    return setValue(GF("+CLASS="), (char)_class);
+    return setValue(GF(AT_CLASS), (char)_class);
   }
 
   bool configureBand(_lora_band band) {
-    if (setValue(GF("+BAND="), band)) {
+    if (setValue(GF(AT_BAND), band)) {
         return false;
     }
     if (band == EU868 && isArduinoFW()) {
@@ -505,8 +567,8 @@ public:
 
   String getChannelMask() {
     int size = 4*getChannelMaskSize(region);
-    sendAT(GF("+CHANMASK?"));
-	if ((!compat_mode && waitResponse(GF("+CHANMASK?")) == 1)
+    sendAT(GF(AT_CHANMASK AT_QM));
+	if ((!compat_mode && waitResponse(GF(AT_CHANMASK)) == 1)
 			|| (compat_mode && waitResponse() == 1)) {
         channel_mask_str = stream.readStringUntil('\r');
         DBG("Full channel mask string: ", channel_mask_str);
@@ -598,11 +660,11 @@ public:
   }
 
   bool sendMask(String newMask) {
-    return setValue(GF("+CHANMASK="), newMask);
+    return setValue(GF(AT_CHANMASK), newMask);
   }
 
   void setBaud(unsigned long baud) {
-    sendAT(GF("+UART="), baud);
+    sendAT(GF(AT_UART), baud);
   }
 
   bool autoBaud(unsigned long timeout = 10000L) {
@@ -618,15 +680,15 @@ public:
   }
 
   String version() {
-    fw_version = getStringValue(GF("+DEV?"))
+    fw_version = getStringValue(GF(AT_DEV))
     		+ " "
-    		+ getStringValue(GF("+VER?"));
+    		+ getStringValue(GF(AT_VER));
 
     return fw_version;
   }
 
   String deviceEUI() {
-    return getStringValue(GF("+DEVEUI?"));
+    return getStringValue(GF(AT_DEUI));
   }
 
   void maintain() {
@@ -648,7 +710,7 @@ public:
   }
 
   bool factoryDefault() {
-    sendAT(GF("+FACNEW"));  // Factory
+    sendAT(GF(AT_FACNEW));  // Factory
     return waitResponse() == 1;
   }
 
@@ -660,8 +722,8 @@ public:
     if (!autoBaud()) {
       return false;
     }
-    sendAT(GF("+REBOOT"));
-    if (waitResponse(10000L, "+EVENT=0,0") != 1) {
+    sendAT(GF(AT_RESET));
+    if (waitResponse(10000L, AT_EVENT AT_EQ "0,0") != 1) {
       return false;
     }
     delay(1000);
@@ -669,8 +731,8 @@ public:
   }
 
   bool power(_rf_mode mode, uint8_t transmitPower) { // transmitPower can be between 0 and 5
-	sendAT(GF("+RFPOWER"), mode,",",transmitPower);
-	if ((!compat_mode && waitResponse(GF("+RFPOWER")) == 1)
+	sendAT(GF(AT_TXP), mode,",",transmitPower);
+	if ((!compat_mode && waitResponse(GF(AT_TXP)) == 1)
 			|| (compat_mode && waitResponse() == 1))
       return false;
     String resp = stream.readStringUntil('\r');
@@ -678,7 +740,7 @@ public:
   }
 
   int32_t getPower() {
-    return getIntValue(GF("+RFPOWER?"));
+    return getIntValue(GF(AT_TXP));
   }
 
 #ifdef SerialLoRa
@@ -705,23 +767,23 @@ public:
 #endif
 
   bool dutyCycle(bool on) {
-    return setValue(GF("+DUTYCYCLE="), on);
+    return setValue(GF(AT_DCS), on);
   }
 
   bool setPort(uint8_t port) {
-    return setValue(GF("+PORT="), port);
+    return setValue(GF(AT_PORT), port);
   }
 
   bool publicNetwork(bool publicNetwork) {
-    return setValue(GF("+NWK="), publicNetwork);
+    return setValue(GF(AT_PNM), publicNetwork);
   }
 
   bool sleep(bool on = true) {
-    return setValue(GF("+SLEEP="), on);
+    return setValue(GF(AT_SLEEP), on);
   }
 
   bool format(bool hexMode) {
-    return setValue(GF("+DFORMAT="), hexMode);
+    return setValue(GF(AT_FORMAT), hexMode);
   }
 
 /*
@@ -736,11 +798,11 @@ public:
 */
 
   bool dataRate(uint8_t dr) {
-    return setValue(GF("+DR="), dr);
+    return setValue(GF(AT_DR), dr);
   }
 
   int getDataRate() {
-    return (int)getIntValue(GF("+DR?"));
+    return (int)getIntValue(GF(AT_DR));
   }
 
   bool setADR(bool adr) {
@@ -748,59 +810,59 @@ public:
   }
 
   int getADR() {
-    return (int)getIntValue(GF("+ADR?"));
+    return (int)getIntValue(GF(AT_ADR));
   }
 
   String getDevAddr() {
-    return getStringValue(GF("+DEVADDR?"));
+    return getStringValue(GF(AT_DADDR));
   }
 
   String getNwkSKey() {
-    return getStringValue(GF("+NWKSKEY?"));
+    return getStringValue(GF(AT_NWKSKEY));
   }
 
   String getAppSKey() {
-    return getStringValue(GF("+APPSKEY?"));
+    return getStringValue(GF(AT_APPSKEY));
   }
 
   int getRX2DR() {
-    return (int)getIntValue(GF("+RX2DR?"));
+    return (int)getIntValue(GF(AT_RX2DR));
   }
 
   bool setRX2DR(uint8_t dr) {
-    return setValue(GF("+RX2DR="),dr);
+    return setValue(GF(AT_RX2DR),dr);
   }
 
   int32_t getRX2Freq() {
-    return getIntValue(GF("+RX2FQ?"));
+    return getIntValue(GF(AT_RX2FQ));
   }
 
   bool setRX2Freq(uint32_t freq) {
-    return setValue(GF("+RX2FQ="),freq);
+    return setValue(GF(AT_RX2FQ),freq);
   }
 
   bool setFCU(uint16_t fcu) {
-    return setValue(GF("+FCU="), fcu);
+    return setValue(GF(AT_FCU), fcu);
   }
 
   int32_t getFCU() {
-    return getIntValue(GF("+FCU?"));
+    return getIntValue(GF(AT_FCU));
   }
 
   bool setFCD(uint16_t fcd) {
-    return setValue(GF("+FCD="), fcd);
+    return setValue(GF(AT_FCD), fcd);
   }
 
   int32_t getFCD() {
-    return getIntValue(GF("+FCD?"));
+    return getIntValue(GF(AT_FCD));
   }
 
   int32_t getRSSI() {
-    return getIntValue(GF("+RSSI?"));
+    return getIntValue(GF(AT_RSSI));
   }
 
   int32_t getSNR() {
-    return getIntValue(GF("+SNR?"));
+    return getIntValue(GF(AT_SNR));
   }
 
 private:
@@ -815,13 +877,13 @@ private:
   }
 
   bool changeMode(_lora_mode mode) {
-    return setValue(GF("+MODE="), mode);
+    return setValue(GF(AT_CFM), mode);
   }
 
   bool join(uint32_t timeout) {
-    sendAT(GF("+JOIN"));
+    sendAT(GF(AT_JOIN));
     sendAT();
-    if (waitResponse(timeout, "+EVENT=1,1") != 1) {
+    if (waitResponse(timeout, AT_EVENT AT_EQ "1,1") != 1) {
       return false;
     }
     (void)streamSkipUntil('\r');
@@ -831,19 +893,19 @@ private:
   bool set(_lora_property prop, const char* value) {
     switch (prop) {
         case APP_EUI:
-        	return setValue(GF("+APPEUI="), value);
+        	return setValue(GF(AT_APPEUI), value);
         case APP_KEY:
-        	return setValue(GF("+APPKEY="), value);
+        	return setValue(GF(AT_APPKEY), value);
         case DEV_EUI:
-        	return setValue(GF("+DEVEUI="), value);
+        	return setValue(GF(AT_DEUI), value);
         case DEV_ADDR:
-        	return setValue(GF("+DEVADDR="), value);
+        	return setValue(GF(AT_DADDR), value);
         case NWKS_KEY:
-        	return setValue(GF("+NWKSKEY="), value);
+        	return setValue(GF(AT_NWKSKEY), value);
         case NWK_ID:
-            return setValue(GF("+IDNWK="), value);
+            return setValue(GF(AT_NWKID), value);
         case APPS_KEY:
-        	return setValue(GF("+APPSKEY="), value);
+        	return setValue(GF(AT_APPSKEY), value);
         default:
             return false;
     }
@@ -875,9 +937,9 @@ private:
     }
 
     if (confirmed) {
-        sendAT(GF("+CTX "), len);
+        sendAT(GF(AT_CTX " "), len);
     } else {
-        sendAT(GF("+UTX "), len);
+        sendAT(GF(AT_UTX " "), len);
     }
 
     stream.write((uint8_t*)buff, len);
@@ -897,12 +959,16 @@ private:
       return 64;
     }
 
-    int size = getIntValue(GF("+MSIZE?"));
-    return (size < 0) ? 0 : (size_t)size;
+    int size = getIntValue(GF(AT_MSIZE));
+    if (size > 0){
+    	msize = (size_t)size;
+    	return msize;
+    }
+    return 0;
   }
 
   bool getJoinStatus() {
-    return (getIntValue(GF("+NJS?")));
+    return (getIntValue(GF(AT_NJS)));
   }
 
   /* Utilities */
@@ -961,7 +1027,7 @@ private:
    * @param r7 response string defaults to LORA_ERROR_RX
    * @param r8 response string defaults to LORA_ERROR_UNKNOWN
    * @return int8_t   n if the response = r<n>
-   *                  99 if the response ends with "+RECV="
+   *                  99 if the response ends with "+RECV=", "+RECVB="
    *                  -1 if timeout
    */
   int8_t waitResponse(uint32_t timeout, String& data,
@@ -969,7 +1035,7 @@ private:
                        ConstStr r3=GFP(LORA_ERROR_PARAM), ConstStr r4=GFP(LORA_ERROR_BUSY), ConstStr r5=GFP(LORA_ERROR_OVERFLOW),
                        ConstStr r6=GFP(LORA_ERROR_NO_NETWORK), ConstStr r7=GFP(LORA_ERROR_RX), ConstStr r8=GFP(LORA_ERROR_UNKNOWN))
   {
-    data.reserve(64);
+    data.reserve(msize);
     int8_t index = -1;
     int length = 0;
     int a = 0;
@@ -1006,7 +1072,7 @@ private:
 			} else if (r8 && data.endsWith(r8)) {
 			  index = 8;
 			  goto finish;
-			} else if (data.endsWith("+RECV") && a == '=') {
+			} else if (data.endsWith(AT_RECV) && a == '=') {
 			  (void)stream.readStringUntil(',').toInt();
 			  length = stream.readStringUntil('\r').toInt();
 			  (void)streamSkipUntil('\n');
@@ -1021,7 +1087,7 @@ private:
 			  length = 0;
 			  continue;
 			}
-            else if (data.endsWith("+RECVB") && a == '=') {
+            else if (data.endsWith(AT_RECVB) && a == '=') {
   			  (void)stream.readStringUntil(',').toInt();
 			  length = stream.readStringUntil('\r').toInt();
 			  (void)streamSkipUntil('\n');
@@ -1043,7 +1109,7 @@ private:
         }
         data += (char)stream.read();
         length++;
-        if (length >= 64){
+        if (length >= msize){
         	DBG("### Data string too long:", data);
         	return index;
         }
@@ -1081,7 +1147,7 @@ finish:
 
   String getStringValue(ConstStr cmd){
 	String value = "";
-	sendAT(cmd);
+	sendAT(cmd, AT_QM);
 	if ((!compat_mode && waitResponse(cmd) == 1)
 			|| (compat_mode && waitResponse() == 1)) {
 		value = stream.readStringUntil('\r');
@@ -1091,7 +1157,7 @@ finish:
 
   int32_t getIntValue(ConstStr cmd){
 	int32_t value = -1;
-	sendAT(cmd);
+	sendAT(cmd, AT_QM);
 	if ((!compat_mode && waitResponse(cmd) == 1)
 			|| (compat_mode && waitResponse() == 1)) {
 		value = stream.readStringUntil('\r').toInt();
@@ -1101,7 +1167,7 @@ finish:
 
   template<typename T, typename U>
   bool setValue(T cmd, U value) {
-	sendAT(cmd, value);
+	sendAT(cmd, AT_EQ, value);
 	return (waitResponse() == 1);
   }
 
