@@ -864,6 +864,10 @@ public:
     return getIntValue(GF(AT_SNR));
   }
 
+  bool getMsgConfirmed() {
+    return getIntValue(GF(AT_CFS)) == 1;
+  }
+
 private:
 
   bool isArduinoFW() {
@@ -876,7 +880,7 @@ private:
   }
 
   bool changeMode(_lora_mode mode) {
-    return setValue(GF(AT_CFM), mode);
+    return setValue(GF(AT_NJM), mode);
   }
 
   bool join(uint32_t timeout) {
