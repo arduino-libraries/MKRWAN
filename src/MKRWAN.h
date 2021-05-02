@@ -1072,44 +1072,45 @@ private:
 			} else if (r8 && data.endsWith(r8)) {
 			  index = 8;
 			  goto finish;
-			} else if (data.endsWith(AT_RECV) && a == '=') {
+			} else if ((data.endsWith(AT_RECV)
+					|| data.endsWith(AT_RECVB)) && a == '=') {
 			  (void)stream.readStringUntil(',').toInt();
 			  length = stream.readStringUntil('\r').toInt();
 			  (void)streamSkipUntil('\n');
 			  (void)streamSkipUntil('\n');
-			  for (int i = 0; i < length;) {
-				if (stream.available()) {
-					rx.put(stream.read());
-					i++;
-				}
+			  if ((uint16_t)length >= msize){
+				  DBG("### Data string too long:", data);
+				  data = "";
+				  length = 0;
+				  continue;
 			  }
+			  if (data.endsWith(AT_RECVB)){ // Binary receive
+				  char Hi = 0;
+				  for (int i = 0; i < length*2;) {
+					if (stream.available()) {
+						if (!(i%2))
+							Hi=char2int(stream.read()) * 0x10;
+						else
+							rx.put(char2int(stream.read()) + Hi);
+						i++;
+					}
+				  }
+			  }
+			  else	// String receive
+				  for (int i = 0; i < length;) {
+					if (stream.available()) {
+						rx.put(stream.read());
+						i++;
+					}
+				  }
 			  data = "";
 			  length = 0;
 			  continue;
 			}
-            else if (data.endsWith(AT_RECVB) && a == '=') {
-  			  (void)stream.readStringUntil(',').toInt();
-			  length = stream.readStringUntil('\r').toInt();
-			  (void)streamSkipUntil('\n');
-			  (void)streamSkipUntil('\n');
-			  char Hi = 0;
-			  for (int i = 0; i < length*2;) {
-				if (stream.available()) {
-					if (!(i%2))
-						Hi=char2int(stream.read()) * 0x10;
-					else
-						rx.put(char2int(stream.read()) + Hi);
-					i++;
-				}
-			  }
-			  data = "";
-			  length = 0;
-			  continue;
-            }
         }
         data += (char)stream.read();
         length++;
-        if (length >= msize){
+        if ((uint16_t)length >= msize){
         	DBG("### Data string too long:", data);
         	return index;
         }
