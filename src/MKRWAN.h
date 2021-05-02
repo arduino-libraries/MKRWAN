@@ -273,6 +273,8 @@ const T& Max(const T& a, const T& b)
 #define AT_EQ		  "="
 #define AT_QM		  "?"
 
+#define ARDUINO_LORA_MAXBUFF		64	// hard coded limit in middleware and driver
+
 #define LORA_NL "\r"
 static const char LORA_OK[] = "+OK";
 static const char LORA_ERROR[] = "+ERR";
@@ -326,7 +328,7 @@ typedef enum {
     CLASS_C,
 } _lora_class;
 
-class LoRaModem : public Stream
+class LoRaModem : public Stream // @suppress("Class has a virtual method and non-virtual destructor")
 {
 
 public:
@@ -341,7 +343,7 @@ public:
 	  mask_size = 1;
 	  region = EU868;
 	  compat_mode = false;
-	  msize = 64;	// default for arduino
+	  msize = ARDUINO_LORA_MAXBUFF;
     }
 
 public:
@@ -521,7 +523,7 @@ public:
     }
     // populate version field on startup
     version();
-    if (!isLatestFW()) {
+    if (isArduinoFW() && !isLatestFW()) {
       DBG("Please update fw using MKRWANFWUpdate_standalone.ino sketch");
     }
     return true;
@@ -959,7 +961,7 @@ private:
 
   size_t modemGetMaxSize() {
     if (isArduinoFW()) {
-      return 64;
+      return ARDUINO_LORA_MAXBUFF;
     }
 
     int size = getIntValue(GF(AT_MSIZE));
