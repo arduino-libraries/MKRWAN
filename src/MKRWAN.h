@@ -805,7 +805,7 @@ public:
   }
 
   bool setADR(bool adr) {
-    return setValue(GF("+ADR="), adr);
+    return setValue(GF(AT_ADR), adr);
   }
 
   int getADR() {
