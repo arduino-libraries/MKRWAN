@@ -681,10 +681,16 @@ public:
   }
 
   String version() {
-    fw_version = getStringValue(GF(AT_DEV))
-    		+ " "
-    		+ getStringValue(GF(AT_VER));
-
+	fw_version = "";
+	int ret = 0;
+	sendAT(GF(AT_DEV), AT_QM);
+	if ((ret = waitResponse(GF(AT_DEV),GF(LORA_OK))) == 1 || ret == 2) {
+		fw_version = stream.readStringUntil('\r');
+	}
+	sendAT(GF(AT_VER), AT_QM);
+	if ((ret = waitResponse(GF(AT_VER),GF(LORA_OK))) == 1 || ret == 2) {
+		fw_version += " " + stream.readStringUntil('\r');
+	}
     return fw_version;
   }
 
