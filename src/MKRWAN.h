@@ -532,13 +532,12 @@ public:
   }
 
   bool configureBand(_lora_band band) {
-    if (setValue(GF(AT_BAND), band)) {
+    if (!setValue(GF(AT_BAND), band)) {
         return false;
     }
     if (band == EU868 && isArduinoFW()) {
         return dutyCycle(true);
     }
-
     return true;
   }
 
@@ -731,7 +730,7 @@ public:
   }
 
   bool power(_rf_mode mode, uint8_t transmitPower) { // transmitPower can be between 0 and 5
-	sendAT(GF(AT_TXP), mode,",",transmitPower);
+	sendAT(GF(AT_TXP AT_EQ), mode,",",transmitPower);
 	if ((!compat_mode && waitResponse(GF(AT_TXP)) == 1)
 			|| (compat_mode && waitResponse() == 1))
       return false;
