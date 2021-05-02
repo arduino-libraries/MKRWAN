@@ -524,7 +524,7 @@ public:
     // populate version field on startup
     version();
     if (isArduinoFW() && !isLatestFW()) {
-      DBG("Please update fw using MKRWANFWUpdate_standalone.ino sketch");
+      DBG("### Please update fw using MKRWANFWUpdate_standalone.ino sketch");
     }
     return true;
   }
@@ -572,7 +572,7 @@ public:
 	if ((!compat_mode && waitResponse(GF(AT_CHANMASK)) == 1)
 			|| (compat_mode && waitResponse() == 1)) {
         channel_mask_str = stream.readStringUntil('\r');
-        DBG("Full channel mask string: ", channel_mask_str);
+        DBG("### Full channel mask string: ", channel_mask_str);
         sscanf(channel_mask_str.c_str(), "%04hx%04hx%04hx%04hx%04hx%04hx", &channelsMask[0], &channelsMask[1], &channelsMask[2],
                                                     &channelsMask[3], &channelsMask[4], &channelsMask[5]);
 
@@ -655,7 +655,7 @@ public:
       newMask.concat(hex);
     }
 
-    DBG("Newmask: ", newMask);
+    DBG("### Newmask: ", newMask);
 
     return sendMask(newMask);
   }
