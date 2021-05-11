@@ -583,16 +583,7 @@ public:
   }
 
   int isChannelEnabled(int pos) {
-    //Populate channelsMask array
-    int max_retry = 3;
-    int retry = 0;
-    while (retry < max_retry) {
-      String mask = getChannelMask();
-      if (mask != "0") {
-        break;
-      }
-      retry++;
-    }
+	populateChannelsMask();
 
     int row = pos / 16;
     int col = pos % 16;
@@ -604,16 +595,7 @@ public:
   }
 
   bool disableChannel(int pos) {
-    //Populate channelsMask array
-    int max_retry = 3;
-    int retry = 0;
-    while (retry < max_retry) {
-      String mask = getChannelMask();
-      if (mask != "0") {
-        break;
-      }
-      retry++;
-    }
+	populateChannelsMask();
 
     int row = pos / 16;
     int col = pos % 16;
@@ -625,18 +607,9 @@ public:
   }
 
   bool enableChannel(int pos) {
-    //Populate channelsMask array
-    int max_retry = 3;
-    int retry = 0;
-    while (retry < max_retry) {
-      String mask = getChannelMask();
-      if (mask != "0") {
-        break;
-      }
-      retry++;
-    }
+	populateChannelsMask();
 
-    int row = pos / 16;
+	int row = pos / 16;
     int col = pos % 16;
     uint16_t mask = (uint16_t)(1 << col);
 
@@ -1022,6 +995,17 @@ private:
     if(input >= 'a' && input <= 'f')
       return input - 'a' + 10;
     return 0;
+  }
+
+  void populateChannelsMask(){
+	//Populate channelsMask array
+	int max_retry = 3;
+	for (int retry = 0; retry < max_retry; retry++) {
+	  String mask = getChannelMask();
+	  if (mask != "0") {
+		break;
+	  }
+	}
   }
 
   /**
