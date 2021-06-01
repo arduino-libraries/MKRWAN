@@ -1022,7 +1022,6 @@ private:
    * @param r7 response string defaults to LORA_ERROR_RX
    * @param r8 response string defaults to LORA_ERROR_UNKNOWN
    * @return int8_t   n if the response = r<n>
-   *                  99 if the response ends with "+RECV=", "+RECVB="
    *                  -1 if timeout
    */
   int8_t waitResponse(uint32_t timeout, String& data,
@@ -1115,7 +1114,7 @@ finish:
 	if (a != '+') // no follow-up command, get terminator from buffer
 		(void)stream.read();
 
-    if (!index) {
+    if (index == -1) {
       data.trim();
       if (data.length()) {
         DBG("### Unhandled:", data);
