@@ -19,13 +19,13 @@ modem.begin(band);
 
 Band: the chosen band. Can be one between:
 
-AS923
-AU915
-EU868 (default value)
-KR920
-IN865
-US915
-US915_HYBRID
+- AS923
+- AU915
+- EU868 (default value)
+- KR920
+- IN865
+- US915
+- US915_HYBRID
 
 #### Returns
 
