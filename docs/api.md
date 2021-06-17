@@ -10,8 +10,6 @@ Initializes the MKRWAN library and module
 
 #### Syntax
 
-
-
 ```
 modem.begin();
 modem.begin(band);
@@ -132,7 +130,7 @@ void loop() {
 
 ### `restart()`
 
-Description
+#### Description
 Restarts the LoRaWAN module
 
 
@@ -244,8 +242,9 @@ void loop() {
 
 ### `version()`
 
-Description
-#### Returns the MKRWAN firmware version
+#### Description
+
+Returns the MKRWAN firmware version
 
 
 #### Syntax
@@ -499,7 +498,7 @@ void loop() {
 
 ### `joinOTAA()`
 
-Description
+#### Description
 Attempts to join to the LoRaWAN network using Over-The-Air-Activation (OTAA)
 
 
@@ -629,14 +628,17 @@ void loop() {
 
 ### `joinABP()`
 
-Description
+#### Description
 Attempts to join to the LoRaWAN network using Activating-By-Personalization (ABP)
 
 
 #### Syntax
 
+```
 modem.joinABP(devAddr, nwkSKey)
 modem.joinABP(devAddr, nwkSKey, appSKey)
+```
+
 #### Parameters
 devAddr: 32 bit device address (non-unique)
 nwkSKey: 128 bit network session key
@@ -758,13 +760,16 @@ void loop() {
 
 ### `beginPacket()`
 
-Description
+#### Description
 Begins the process of sending a packet
 
 
 #### Syntax
 
+```
 modem.beginPacket();
+```
+
 #### Parameters
 None
 
@@ -867,15 +872,17 @@ void loop() {
 
 ### `write()`
 
-Description
+#### Description
 Adds binary data to the packet to send over LoRaWAN. This data is sent as a byte or series of bytes; to send the characters representing the digits of a number use the print() function instead.
 
 
 #### Syntax
 
+```
 modem.write(val)
 modem.write(str)
 modem.write(buf, len)
+```
 
 #### Parameters
 val: a value to send as a single byte
@@ -888,13 +895,14 @@ len: the length of the buffer
 
 ### `read()`
 
-Description
+#### Description
 Reads incoming LoRaWAN data. read() inherits from the Stream utility class.
 
 
 #### Syntax
-
+```
 modem.read()
+```
 
 #### Parameters
 None
@@ -1001,15 +1009,17 @@ void loop() {
 
 ### `print()`
 
-Description
+#### Description 
 Add characters to the packet to be sent over LoRaWAN. This data is sent as a character or series of characters; to send the binary data use the write() function instead.
 
 
 #### Syntax
 
+```
 modem.print(val)
 modem.print(str)
 modem.print(buf, len)
+```
 
 #### Parameters
 val: a value to send characters representing the value
@@ -1125,7 +1135,9 @@ Returns the next byte (character) of incoming serial data without removing it fr
 
 #### Syntax
 
+```
 modem.peek()
+```
 
 #### Parameters
 None
@@ -1135,13 +1147,15 @@ the first byte of incoming serial data available (or -1 if no data is available)
 
 ### `available()`
 
-Description
+#### Description
 Get the number of bytes (characters) available for reading. This is data that's already arrived and stored in a receive buffer. available() inherits from the Stream utility class.
 
 
 #### Syntax
 
+```
 modem.available()
+```
 
 #### Parameters
 none
@@ -1248,13 +1262,15 @@ void loop() {
 
 ### `parsePacket()`
 
-Description
+#### Description
 Checks for the presence of a LoRaWAN packet, and reports the size. parsePacket() must be called before reading the buffer with modem.read().
 
 
 #### Syntax
 
+```
 modem.parsePacket()
+```
 
 #### Parameters
 None
@@ -1264,13 +1280,15 @@ int: the size of a received LoRaWAN packet
 
 ### `endPacket()`
 
-Description
+#### Description
 Completes the process of sending a LoRaWAN packet started by beginPacket.
 
 
 #### Syntax
 
+```
 modem.endPacket();
+```
 
 #### Return
 Returns an int: 1 if the packet was sent successfully, 0 if there was an error
