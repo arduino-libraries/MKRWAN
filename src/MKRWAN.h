@@ -849,6 +849,10 @@ public:
     return getIntValue(GF(AT_CFS)) == 1;
   }
 
+  bool getJoinStatus() {
+    return (getIntValue(GF(AT_NJS)));
+  }
+  
 private:
 
   bool isArduinoFW() {
