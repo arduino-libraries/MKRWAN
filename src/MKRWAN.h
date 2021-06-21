@@ -681,12 +681,12 @@ public:
     pollInterval = secs * 1000;
   }
 
-  void poll() {
-    if (millis() - lastPollTime < pollInterval) return;
+  int poll() {
+    if (millis() - lastPollTime < pollInterval) return 0;
     lastPollTime = millis();
-    // simply trigger a fake write
+    // simply trigger a send with no payload (no confirmation required)
     uint8_t dummy = 0;
-    modemSend(&dummy, 1, true);
+    return modemSend(&dummy, 1, false);
   }
 
   bool factoryDefault() {
@@ -939,7 +939,7 @@ private:
   }
 
   size_t modemGetMaxSize() {
-    if (isArduinoFW()) {
+    if (compat_mode  && isArduinoFW()) {
       return ARDUINO_LORA_MAXBUFF;
     }
 
