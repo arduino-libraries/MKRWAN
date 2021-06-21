@@ -955,10 +955,6 @@ private:
     return 0;
   }
 
-  bool getJoinStatus() {
-    return (getIntValue(GF(AT_NJS)));
-  }
-
   /* Utilities */
   template<typename T>
   void streamWrite(T last) {
