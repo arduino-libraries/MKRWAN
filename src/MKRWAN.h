@@ -395,6 +395,7 @@ public:
     set(NWKS_KEY, nwkSKey);
     set(APPS_KEY, appSKey);
     network_joined = join(timeout);
+    delay(1000);
     return (getJoinStatus() == 1);
   }
 
