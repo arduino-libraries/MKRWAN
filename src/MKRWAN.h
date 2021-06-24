@@ -620,7 +620,7 @@ public:
 
   bool sendMask() {
     String newMask;
-
+    newMask.reserve(24);
     /* Convert channel mask into string */
     for (int i = 0; i < 6; i++) {
       char hex[5];
