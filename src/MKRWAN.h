@@ -712,7 +712,7 @@ public:
 
   bool power(_rf_mode mode, uint8_t transmitPower) { // transmitPower can be between 0 and 5
 	sendAT(GF(AT_TXP), GF(AT_EQ), mode, ",", transmitPower);
-	return (compat_mode && waitResponse() == 1);
+	return (waitResponse() == 1);
   }
 
   int32_t getPower() {
@@ -1064,7 +1064,7 @@ private:
 			  goto finish;
 			} else if ((data.endsWith(GF(AT_RECV))
 					|| data.endsWith(GF(AT_RECVB))) && a == '=') {
-			  (void)stream.readStringUntil(',').toInt();
+			  __attribute__((unused)) int port = stream.readStringUntil(',').toInt();
 			  length = stream.readStringUntil('\r').toInt();
 			  (void)streamSkipUntil('\n');
 			  (void)streamSkipUntil('\n');
