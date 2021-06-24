@@ -359,7 +359,6 @@ private:
   unsigned long pollInterval;
   int           mask_size;
   uint16_t      channelsMask[6];
-  String        channel_mask_str;
   _lora_band    region;
   bool			compat_mode;
   size_t		msize;
@@ -568,7 +567,9 @@ public:
 
   String getChannelMask() {
     int size = 4*getChannelMaskSize(region);
-    sendAT(GF(AT_CHANMASK AT_QM));
+
+    String channel_mask_str = "0";
+    sendAT(GF(AT_CHANMASK), GF(AT_QM));
 	if ((!compat_mode && waitResponse(GF(AT_CHANMASK)) == 1)
 			|| (compat_mode && waitResponse() == 1)) {
         channel_mask_str = stream.readStringUntil('\r');
@@ -576,10 +577,8 @@ public:
         sscanf(channel_mask_str.c_str(), "%04hx%04hx%04hx%04hx%04hx%04hx", &channelsMask[0], &channelsMask[1], &channelsMask[2],
                                                     &channelsMask[3], &channelsMask[4], &channelsMask[5]);
 
-        return channel_mask_str.substring(0, size);
     }
-    String str = "0";
-    return str;
+    return channel_mask_str.substring(0, size);
   }
 
   int isChannelEnabled(int pos) {
