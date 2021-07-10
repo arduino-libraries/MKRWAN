@@ -715,8 +715,8 @@ public:
 	return (waitResponse() == 1);
   }
 
-  int32_t getPower() {
-    return getIntValue(GF(AT_TXP));
+  int getPower() {
+    return (int)getIntValue(GF(AT_TXP));
   }
 
 #ifdef SerialLoRa
@@ -809,36 +809,36 @@ public:
     return setValue(GF(AT_RX2DR),dr);
   }
 
-  int32_t getRX2Freq() {
-    return getIntValue(GF(AT_RX2FQ));
+  uint32_t getRX2Freq() {
+    return getUIntValue(GF(AT_RX2FQ));
   }
 
   bool setRX2Freq(uint32_t freq) {
     return setValue(GF(AT_RX2FQ),freq);
   }
 
-  bool setFCU(uint16_t fcu) {
+  bool setFCU(uint32_t fcu) {
     return setValue(GF(AT_FCU), fcu);
   }
 
-  int32_t getFCU() {
-    return getIntValue(GF(AT_FCU));
+  uint32_t getFCU() {
+	return getUIntValue(GF(AT_FCU));
   }
 
-  bool setFCD(uint16_t fcd) {
+  bool setFCD(uint32_t fcd) {
     return setValue(GF(AT_FCD), fcd);
   }
 
-  int32_t getFCD() {
-    return getIntValue(GF(AT_FCD));
+  uint32_t getFCD() {
+    return getUIntValue(GF(AT_FCD));
   }
 
-  int32_t getRSSI() {
-    return getIntValue(GF(AT_RSSI));
+  int getRSSI() {
+    return (int)getIntValue(GF(AT_RSSI));
   }
 
-  int32_t getSNR() {
-    return getIntValue(GF(AT_SNR));
+  int getSNR() {
+    return (int)getIntValue(GF(AT_SNR));
   }
 
   bool getMsgConfirmed() {
@@ -1152,6 +1152,16 @@ finish:
 	if ((!compat_mode && waitResponse(cmd) == 1)
 			|| (compat_mode && waitResponse() == 1)) {
 		value = stream.readStringUntil('\r').toInt();
+	}
+	return value;
+  }
+
+  uint32_t getUIntValue(ConstStr cmd){
+	uint32_t value = 0;
+	sendAT(cmd, GF(AT_QM));
+	if ((!compat_mode && waitResponse(cmd) == 1)
+			|| (compat_mode && waitResponse() == 1)) {
+		value = strtoul(stream.readStringUntil('\r').c_str(), NULL, 10);
 	}
 	return value;
   }
