@@ -274,6 +274,8 @@ const T& Max(const T& a, const T& b)
 #define AT_QM		  "?"
 
 #define ARDUINO_LORA_MAXBUFF		64	// hard coded limit in middleware and driver
+#define FMT_HEX						0
+#define FMT_BIN						1
 
 #define LORA_NL "\r"
 static const char LORA_OK[] = "+OK";
@@ -343,6 +345,7 @@ public:
 	  mask_size = 1;
 	  region = EU868;
 	  compat_mode = false;
+	  formatBin	= false;
 	  msize = ARDUINO_LORA_MAXBUFF;
     }
 
@@ -361,6 +364,7 @@ private:
   uint16_t      channelsMask[6];
   _lora_band    region;
   bool			compat_mode;
+  bool			formatBin;
   size_t		msize;
 
 public:
@@ -758,8 +762,12 @@ public:
     return setValue(GF(AT_SLEEP), on);
   }
 
-  bool format(bool hexMode) {
-    return setValue(GF(AT_FORMAT), hexMode);
+  bool format(bool mode) {
+    if (setValue(GF(AT_FORMAT), mode)){
+    	formatBin = mode;
+    	return true;
+    }
+    return false;
   }
 
 /*
@@ -920,13 +928,23 @@ private:
         return -20;
     }
 
+    if (formatBin)
+    	len *=2; // ->TO hex
+
     if (confirmed) {
         sendAT(GF(AT_CTX), " ", len);
     } else {
         sendAT(GF(AT_UTX), " ", len);
     }
-
-    stream.write((uint8_t*)buff, len);
+    if (formatBin){
+    	char chr[3];
+    	for (size_t i = 0; i<len; i+=2, buff=(uint8_t *)buff+1){
+    		sprintf(chr, "%02x", *(uint8_t *)buff);
+    		stream.write(chr, 2);
+    	}
+    }
+    else
+    	stream.write((uint8_t*)buff, len);
 
     int8_t rc = waitResponse();
     if (rc == 1) {            ///< OK
