@@ -625,7 +625,9 @@ public:
    * Data will be available earliest after the RX1 window has passed.
    * E.g. 
    * modem.poll();
-   * delay(modem.getRX1Delay() + 1000);
+   * delay(modem.getRX1Delay() + 2000);
+   * Take into account the time required to demodulate the downlink message.
+   * At Spreading Factor 12 it can take more than two seconds while at SF7, it will take less than 100 ms.
    * */
   long getRX1Delay(){
     sendAT(GF("+RX1DL?"));
