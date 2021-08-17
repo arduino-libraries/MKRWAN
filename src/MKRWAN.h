@@ -288,6 +288,7 @@ private:
   String        fw_version;
   unsigned long lastPollTime;
   unsigned long pollInterval;
+  uint8_t       downlinkPort; // Valid values are between 1 and 223
   int           mask_size;
   uint16_t      channelsMask[6];
   String        channel_mask_str;
@@ -728,6 +729,10 @@ public:
     return true;
   }
 
+  uint8_t getDownlinkPort(){
+    return downlinkPort;
+  }
+
   bool publicNetwork(bool publicNetwork) {
     sendAT(GF("+NWK="), publicNetwork);
     if (waitResponse() != 1) {
@@ -1106,7 +1111,7 @@ private:
           goto finish;
         } else if (data.endsWith("+RECV=")) {
           data = "";
-          stream.readStringUntil(',').toInt();
+          downlinkPort = stream.readStringUntil(',').toInt();
           length = stream.readStringUntil('\r').toInt();
           streamSkipUntil('\n');
           streamSkipUntil('\n');
