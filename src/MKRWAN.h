@@ -346,6 +346,7 @@ public:
 	  region = EU868;
 	  compat_mode = false;
 	  formatBin	= false;
+	  adr	= true;
 	  msize = ARDUINO_LORA_MAXBUFF;
     }
 
@@ -365,6 +366,7 @@ private:
   _lora_band    region;
   bool			compat_mode;
   bool			formatBin;
+  bool			adr;
   size_t		msize;
 
 public:
@@ -782,15 +784,23 @@ public:
 */
 
   bool dataRate(uint8_t dr) {
-    return setValue(GF(AT_DR), dr);
+    if (setValue(GF(AT_DR), dr)){
+    	(void)modemGetMaxSize();
+    	return true;
+    }
+    return false;
   }
 
   int getDataRate() {
     return (int)getIntValue(GF(AT_DR));
   }
 
-  bool setADR(bool adr) {
-    return setValue(GF(AT_ADR), adr);
+  bool setADR(bool nadr) {
+	if (setValue(GF(AT_ADR), nadr)){
+		adr = nadr;
+		return true;
+	}
+	return false;
   }
 
   int getADR() {
@@ -923,8 +933,10 @@ private:
    */
   int modemSend(const void* buff, size_t len, bool confirmed) {
 
-    size_t max_len = modemGetMaxSize();
-    if (len > max_len) {
+	if (adr)
+    	(void)modemGetMaxSize();
+
+    if (len > msize) {
         return -20;
     }
 
