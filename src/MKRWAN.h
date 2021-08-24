@@ -1056,7 +1056,7 @@ private:
     data.reserve(msize);
     int8_t index = -1;
     int length = 0;
-    int a = 0;
+    int a = -1;
     unsigned long startMillis = millis();
     do {
       YIELD();
@@ -1135,7 +1135,7 @@ private:
       }
     } while (millis() - startMillis < timeout);
 finish:
-	if (a != '+') // no follow-up command, get terminator from buffer
+	if (a >= 0 && a != '+') // no follow-up command, get terminator from buffer
 		(void)stream.read();
 
     if (index == -1) {
