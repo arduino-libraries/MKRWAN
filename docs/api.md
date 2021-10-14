@@ -1388,3 +1388,26 @@ void loop() {
   }
   Serial.println();
 }
+```
+
+### `modem.changeBand()`
+
+#### Description
+Change the LoRaWAN module band
+
+#### Syntax
+modem.changeBand(band);
+
+#### Parameters
+
+**band:** the chosen band. Can be one between:
+- AS923
+- AU915
+- EU868 (default value)
+- KR920
+- IN865
+- US915
+- US915_HYBRID
+
+#### Returns
+true if correctly configured, false otherwise
