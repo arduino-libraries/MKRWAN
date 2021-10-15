@@ -1390,13 +1390,16 @@ void loop() {
 }
 ```
 
-### `modem.changeBand()`
+### `modem.configureBand()`
 
 #### Description
 Change the LoRaWAN module band
 
 #### Syntax
-modem.changeBand(band);
+
+```
+modem.configureBand(band); //e.g. EU868, US915, AS923
+```
 
 #### Parameters
 
