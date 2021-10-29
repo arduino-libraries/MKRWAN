@@ -361,6 +361,7 @@ private:
   String        fw_version;
   unsigned long lastPollTime;
   unsigned long pollInterval;
+  uint8_t       downlinkPort; // Valid values are between 1 and 223
   int           mask_size;
   uint16_t      channelsMask[6];
   _lora_band    region;
@@ -756,6 +757,10 @@ public:
     return setValue(GF(AT_PORT), port);
   }
 
+  uint8_t getDownlinkPort(){
+    return downlinkPort;
+  }
+
   bool publicNetwork(bool publicNetwork) {
     return setValue(GF(AT_PNM), publicNetwork);
   }
@@ -1092,7 +1097,7 @@ private:
 			  goto finish;
 			} else if ((data.endsWith(GF(AT_RECV))
 					|| data.endsWith(GF(AT_RECVB))) && a == '=') {
-			  __attribute__((unused)) int port = stream.readStringUntil(',').toInt();
+			  downlinkPort = stream.readStringUntil(',').toInt();
 			  length = stream.readStringUntil('\r').toInt();
 			  (void)streamSkipUntil('\n');
 			  (void)streamSkipUntil('\n');
