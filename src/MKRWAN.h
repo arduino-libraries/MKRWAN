@@ -19,6 +19,8 @@
   along with MKRWAN library.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#pragma once
+
 #include "Arduino.h"
 
 #ifdef PORTENTA_CARRIER
