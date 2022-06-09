@@ -1,9 +1,9 @@
 /*
 * Helium Send And Receive
 *
-* For Adafruit non-CayeenLPP connections for simple sensor Base 64 encoded
+* For Helium and Adafruit.io http integrations sensor data is Base 64 encoded
 *
-* In Helium "functions" section use this simple bsae64 decoder
+* In Helium "functions" section use this simple base64 decoder
 *
 ////////////////////////////////////////////////////////////
  function Decoder(bytes, port, uplink_info) {
@@ -30,7 +30,14 @@
 * 
 * This sketch demonstrates how to send and receive data with the PortentaH7 LoRa module.
 * This example code is in the public domain.
-* Note: Helium must be setup for what it does with the data
+* By Jeremy Ellis Twitter @rocksetta
+* Helium Video Playlist at
+* https://www.youtube.com/watch?v=wt_WZ1sBDeM&list=PL57Dnr1H_egu0PkIBAbbdfQ21O_NJqJg8&index=4
+*
+* Helium Arduino Documnetation at
+* https://docs.helium.com/use-the-network/devices/development/arduino/lora-vision-shield/arduino/
+*
+* Note: Helium and Adafruit.io must be setup for what it does with the data
 */
 
 #include <Arduino.h> // Only needed by https://platformio.org/
