@@ -3,6 +3,8 @@
 *
 * For Helium and Adafruit.io http integrations sensor data is Base 64 encoded
 *
+* Run the MKRWAN example MKRWANFWUpdate_standalone to make sure the LoRa module is reset
+*
 * In Helium "functions" section use this simple base64 decoder
 *
 ////////////////////////////////////////////////////////////
