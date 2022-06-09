@@ -3,8 +3,9 @@
 *
 * For Adafruit CayenneLPP connections using MQTT
 *
-* In Helium "functions" section use this simple bsae64 decoder
-* You simple need to use the CayenneLPP pre-set decoder.
+* Run the MKRWAN example MKRWANFWUpdate_standalone to make sure the LoRa module is reset
+*
+* In Helium "functions" section you simply need to use the CayenneLPP pre-set decoder.
 * No other settings are needed
 * The only negative is that you can't change the feed names that arrive at Adafruit.io
 *
