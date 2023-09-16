@@ -621,6 +621,39 @@ public:
     return false;
   }
 
+  /**
+   * Returns the delay between the end of the Tx and the Rx Window 1 in ms.
+   * This may get changed automatically based on a network server's preference after joining it.
+   * This can be used to determine the wait time after a poll() call until data is available.
+   * Data will be available earliest after the RX1 window has passed.
+   * E.g. 
+   * modem.poll();
+   * delay(modem.getRX1Delay() + 2000);
+   * Take into account the time required to demodulate the downlink message.
+   * At Spreading Factor 12 it can take more than two seconds while at SF7, it will take less than 100 ms.
+   * */
+  long getRX1Delay(){
+    sendAT(GF("+RX1DL?"));
+    if (waitResponse("+OK=") == 1) {
+        return stream.readStringUntil('\r').toInt();
+    }
+    return -1;
+  }
+
+  /**
+   * Returns the delay between the end of the Tx and the Rx Window 2 in ms.
+   * This may get changed automatically based on a network server's preference after joining it.
+   * This can be used to determine the wait time after a poll() call until data is available.
+   * @see getRX1Delay()
+   * */
+  long getRX2Delay(){
+    sendAT(GF("+RX2DL?"));
+    if (waitResponse() == 1) {
+        return stream.readStringUntil('\r').toInt();
+    }
+    return -1;
+  }
+
   String version() {
     sendAT(GF("+DEV?"));
     if (waitResponse("+OK=") == 1) {
