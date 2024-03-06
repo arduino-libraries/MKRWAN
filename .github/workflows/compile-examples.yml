@@ -35,18 +35,22 @@ jobs:
             platforms: |
               - name: arduino:samd
             updater: true
+            artifact-name-suffix: arduino-samd-mkrwan1300
           - fqbn: arduino:samd:mkrwan1310
             platforms: |
               - name: arduino:samd
             updater: true
+            artifact-name-suffix: arduino-samd-mkrwan1310
           - fqbn: arduino:mbed_portenta:envie_m7:target_core=cm4
             platforms: |
               - name: arduino:mbed_portenta
             updater: false
+            artifact-name-suffix: arduino-mbed_portenta-envie_m7-target_core-cm4
           - fqbn: arduino:mbed_portenta:envie_m7
             platforms: |
               - name: arduino:mbed_portenta
             updater: true
+            artifact-name-suffix: arduino-mbed_portenta-envie_m7
 
         # make board type-specific customizations to the matrix jobs
         include:
@@ -88,4 +92,4 @@ jobs:
         with:
           if-no-files-found: error
           path: ${{ env.SKETCHES_REPORTS_PATH }}
-          name: ${{ env.SKETCHES_REPORTS_PATH }}
+          name: sketches-report-${{ matrix.board.artifact-name-suffix }}
