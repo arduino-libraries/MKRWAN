@@ -468,6 +468,16 @@ public:
     }
     return true;
   }
+  
+  String getClass() {
+    String class_name = "";
+    sendAT(GF("+CLASS?"));
+    if (waitResponse("+OK=") == 1) {
+        class_name = stream.readStringUntil('\r');
+    }
+    return class_name;
+  }
+
 
   bool configureBand(_lora_band band) {
     sendAT(GF("+BAND="), band);
