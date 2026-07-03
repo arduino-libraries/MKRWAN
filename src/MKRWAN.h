@@ -215,17 +215,82 @@ const T& Max(const T& a, const T& b)
   #define LORA_RX_BUFFER 256
 #endif
 
+/* AT Command strings. Commands start with AT */
+#define AT_RESET      "+REBOOT"
+#define AT_BAND       "+BAND"
+#define AT_DEUI       "+DEVEUI"
+#define AT_DADDR      "+DEVADDR"
+#define AT_APPKEY     "+APPKEY"
+#define AT_NWKSKEY    "+NWKSKEY"
+#define AT_APPSKEY    "+APPSKEY"
+#define AT_APPEUI     "+APPEUI"
+#define AT_ADR        "+ADR"
+#define AT_TXP        "+RFPOWER"
+#define AT_FORMAT     "+DFORMAT"
+#define AT_DR         "+DR"
+#define AT_DCS        "+DUTYCYCLE"
+#define AT_PNM        "+NWK"
+#define AT_RX2FQ      "+RX2FQ"
+#define AT_RX2DR      "+RX2DR"
+#define AT_RX1DL      "+RX1DL"
+#define AT_RX2DL      "+RX2DL"
+#define AT_JN1DL      "+JN1DL"
+#define AT_JN2DL      "+JN2DL"
+#define AT_NJM        "+MODE"
+#define AT_NWKID      "+IDNWK"
+#define AT_FCU        "+FCU"
+#define AT_FCD        "+FCD"
+#define AT_CLASS      "+CLASS"
+#define AT_JOIN       "+JOIN"
+#define AT_NJS        "+NJS"
+#define AT_SENDB      "+SENDB"
+#define AT_SEND       "+SEND"
+#define AT_RECVB      "+RECVB"
+#define AT_RECV       "+RECV"
+#define AT_UTX		  "+UTX"
+#define AT_CTX		  "+CTX"
+#define AT_PORT       "+PORT"
+#define AT_VER        "+VER"
+#define AT_DEV        "+DEV"
+#define AT_CFM        "+CFM"
+#define AT_CFS        "+CFS"
+#define AT_SNR        "+SNR"
+#define AT_RSSI       "+RSSI"
+#define AT_BAT        "+BAT"
+#define AT_TRSSI      "+TRSSI"
+#define AT_TTONE      "+TTONE"
+#define AT_TTLRA      "+TTLRA"
+#define AT_TRLRA      "+TRLRA"
+#define AT_TCONF      "+TCONF"
+#define AT_TOFF       "+TOFF"
+#define AT_CERTIF     "+CERTIF"
+#define AT_CHANMASK   "+CHANMASK"
+#define AT_CHANDEFMASK "+CHANDEFMASK"
+
+#define AT_EVENT	  "+EVENT"
+#define AT_UART		  "+UART"
+#define AT_FACNEW	  "+FACNEW"
+#define AT_SLEEP	  "+SLEEP"
+#define AT_MSIZE	  "+MSIZE"
+#define AT_EQ		  "="
+#define AT_QM		  "?"
+
+#define ARDUINO_LORA_MAXBUFF		64	// hard coded limit in middleware and driver
+#define FMT_HEX						0
+#define FMT_BIN						1
+
 #define LORA_NL "\r"
 static const char LORA_OK[] = "+OK";
-static const char LORA_ERROR[] = "+ERR\r";
-static const char LORA_ERROR_PARAM[] = "+ERR_PARAM\r";
-static const char LORA_ERROR_BUSY[] = "+ERR_BUSY\r";
-static const char LORA_ERROR_OVERFLOW[] = "+ERR_PARAM_OVERFLOW\r";
-static const char LORA_ERROR_NO_NETWORK[] = "+ERR_NO_NETWORK\r";
-static const char LORA_ERROR_RX[] = "+ERR_RX\r";
-static const char LORA_ERROR_UNKNOWN[] = "+ERR_UNKNOWN\r";
+static const char LORA_ERROR[] = "+ERR";
+static const char LORA_ERROR_PARAM[] = "+ERR_PARAM";
+static const char LORA_ERROR_BUSY[] = "+ERR_BUSY";
+static const char LORA_ERROR_OVERFLOW[] = "+ERR_PARAM_OVERFLOW";
+static const char LORA_ERROR_NO_NETWORK[] = "+ERR_NO_NETWORK";
+static const char LORA_ERROR_RX[] = "+ERR_RX";
+static const char LORA_ERROR_UNKNOWN[] = "+ERR_UNKNOWN";
 
-static const char ARDUINO_FW_VERSION[] = "ARD-078 1.2.1";
+static const char ARDUINO_FW_VERSION[] = "ARD-078 1.2.4";
+static const char ARDUINO_FW_VERSION_AT[] = "ARD-078 1.2.4";
 static const char ARDUINO_FW_IDENTIFIER[] = "ARD-078";
 
 typedef enum {
@@ -267,7 +332,7 @@ typedef enum {
     CLASS_C,
 } _lora_class;
 
-class LoRaModem : public Stream
+class LoRaModem : public Stream // @suppress("Class has a virtual method and non-virtual destructor")
 {
 
 public:
@@ -277,7 +342,15 @@ public:
 #else
     : stream(stream), lastPollTime(millis()), pollInterval(300000)
 #endif
-    {}
+    {
+	  network_joined = false;
+	  mask_size = 1;
+	  region = EU868;
+	  compat_mode = false;
+	  formatBin	= false;
+	  adr	= true;
+	  msize = ARDUINO_LORA_MAXBUFF;
+    }
 
 public:
   typedef SerialFifo<uint8_t, LORA_RX_BUFFER> RxFifo;
@@ -293,8 +366,11 @@ private:
   uint8_t       downlinkPort; // Valid values are between 1 and 223
   int           mask_size;
   uint16_t      channelsMask[6];
-  String        channel_mask_str;
   _lora_band    region;
+  bool			compat_mode;
+  bool			formatBin;
+  bool			adr;
+  size_t		msize;
 
 public:
   virtual int joinOTAA(const char *appEui, const char *appKey, const char *devEui, uint32_t timeout) {
@@ -328,6 +404,7 @@ public:
     set(NWKS_KEY, nwkSKey);
     set(APPS_KEY, appSKey);
     network_joined = join(timeout);
+    delay(1000);
     return (getJoinStatus() == 1);
   }
 
@@ -455,23 +532,18 @@ public:
     }
     // populate version field on startup
     version();
-    if (!isLatestFW()) {
-      DBG("Please update fw using MKRWANFWUpdate_standalone.ino sketch");
+    if (isArduinoFW() && !isLatestFW()) {
+      DBG("### Please update fw using MKRWANFWUpdate_standalone.ino sketch");
     }
     return true;
   }
 
   bool configureClass(_lora_class _class) {
-    sendAT(GF("+CLASS="), (char)_class);
-    if (waitResponse() != 1) {
-        return false;
-    }
-    return true;
+    return setValue(GF(AT_CLASS), (char)_class);
   }
 
   bool configureBand(_lora_band band) {
-    sendAT(GF("+BAND="), band);
-    if (waitResponse() != 1) {
+    if (!setValue(GF(AT_BAND), band)) {
         return false;
     }
     if (band == EU868 && isArduinoFW()) {
@@ -505,30 +577,22 @@ public:
 
   String getChannelMask() {
     int size = 4*getChannelMaskSize(region);
-    sendAT(GF("+CHANMASK?"));
-    if (waitResponse("+OK=") == 1) {
+
+    String channel_mask_str = "0";
+    sendAT(GF(AT_CHANMASK), GF(AT_QM));
+	if ((!compat_mode && waitResponse(GF(AT_CHANMASK)) == 1)
+			|| (compat_mode && waitResponse() == 1)) {
         channel_mask_str = stream.readStringUntil('\r');
-        DBG("Full channel mask string: ", channel_mask_str);
+        DBG("### Full channel mask string: ", channel_mask_str);
         sscanf(channel_mask_str.c_str(), "%04hx%04hx%04hx%04hx%04hx%04hx", &channelsMask[0], &channelsMask[1], &channelsMask[2],
                                                     &channelsMask[3], &channelsMask[4], &channelsMask[5]);
 
-        return channel_mask_str.substring(0, size);
     }
-    String str = "0";
-    return str;
+    return channel_mask_str.substring(0, size);
   }
 
   int isChannelEnabled(int pos) {
-    //Populate channelsMask array
-    int max_retry = 3;
-    int retry = 0;
-    while (retry < max_retry) {
-      String mask = getChannelMask();
-      if (mask != "0") {
-        break;
-      }
-      retry++;
-    }
+	populateChannelsMask();
 
     int row = pos / 16;
     int col = pos % 16;
@@ -540,16 +604,7 @@ public:
   }
 
   bool disableChannel(int pos) {
-    //Populate channelsMask array
-    int max_retry = 3;
-    int retry = 0;
-    while (retry < max_retry) {
-      String mask = getChannelMask();
-      if (mask != "0") {
-        break;
-      }
-      retry++;
-    }
+	populateChannelsMask();
 
     int row = pos / 16;
     int col = pos % 16;
@@ -561,18 +616,9 @@ public:
   }
 
   bool enableChannel(int pos) {
-    //Populate channelsMask array
-    int max_retry = 3;
-    int retry = 0;
-    while (retry < max_retry) {
-      String mask = getChannelMask();
-      if (mask != "0") {
-        break;
-      }
-      retry++;
-    }
+	populateChannelsMask();
 
-    int row = pos / 16;
+	int row = pos / 16;
     int col = pos % 16;
     uint16_t mask = (uint16_t)(1 << col);
 
@@ -583,30 +629,25 @@ public:
 
   bool sendMask() {
     String newMask;
-
+    newMask.reserve(24);
     /* Convert channel mask into string */
     for (int i = 0; i < 6; i++) {
-      char hex[4];
+      char hex[5];
       sprintf(hex, "%04x", channelsMask[i]);
       newMask.concat(hex);
     }
 
-    DBG("Newmask: ", newMask);
+    DBG("### Newmask: ", newMask);
 
     return sendMask(newMask);
   }
 
   bool sendMask(String newMask) {
-    sendAT(GF("+CHANMASK="), newMask);
-    if (waitResponse() != 1) {
-        return false;
-    }
-
-    return true;
+    return setValue(GF(AT_CHANMASK), newMask);
   }
 
   void setBaud(unsigned long baud) {
-    sendAT(GF("+UART="), baud);
+    sendAT(GF(AT_UART), baud);
   }
 
   bool autoBaud(unsigned long timeout = 10000L) {
@@ -622,25 +663,21 @@ public:
   }
 
   String version() {
-    sendAT(GF("+DEV?"));
-    if (waitResponse("+OK=") == 1) {
-        fw_version = stream.readStringUntil('\r');
-    }
-    sendAT(GF("+VER?"));
-    if (waitResponse("+OK=") == 1) {
-        fw_version += " " + stream.readStringUntil('\r');
-    }
-
+	fw_version = "";
+	int ret = 0;
+	sendAT(GF(AT_DEV), GF(AT_QM));
+	if ((ret = waitResponse(GF(AT_DEV),GF(LORA_OK))) == 1 || ret == 2) {
+		fw_version = stream.readStringUntil('\r');
+	}
+	sendAT(GF(AT_VER), GF(AT_QM));
+	if ((ret = waitResponse(GF(AT_VER),GF(LORA_OK))) == 1 || ret == 2) {
+		fw_version += " " + stream.readStringUntil('\r');
+	}
     return fw_version;
   }
 
   String deviceEUI() {
-    String eui;
-    sendAT(GF("+DEVEUI?"));
-    if (waitResponse("+OK=") == 1) {
-        eui = stream.readStringUntil('\r');
-    }
-    return eui;
+    return getStringValue(GF(AT_DEUI));
   }
 
   void maintain() {
@@ -653,16 +690,16 @@ public:
     pollInterval = secs * 1000;
   }
 
-  void poll() {
-    if (millis() - lastPollTime < pollInterval) return;
+  int poll() {
+    if (millis() - lastPollTime < pollInterval) return 0;
     lastPollTime = millis();
-    // simply trigger a fake write
+    // simply trigger a send with no payload (no confirmation required)
     uint8_t dummy = 0;
-    modemSend(&dummy, 1, true);
+    return modemSend(&dummy, 1, false);
   }
 
   bool factoryDefault() {
-    sendAT(GF("+FACNEW"));  // Factory
+    sendAT(GF(AT_FACNEW));  // Factory
     return waitResponse() == 1;
   }
 
@@ -674,8 +711,8 @@ public:
     if (!autoBaud()) {
       return false;
     }
-    sendAT(GF("+REBOOT"));
-    if (waitResponse(10000L, "+EVENT=0,0") != 1) {
+    sendAT(GF(AT_RESET));
+    if (waitResponse(10000L, GF(AT_EVENT) GF(AT_EQ) "0,0") != 1) {
       return false;
     }
     delay(1000);
@@ -683,13 +720,12 @@ public:
   }
 
   bool power(_rf_mode mode, uint8_t transmitPower) { // transmitPower can be between 0 and 5
-    sendAT(GF("+RFPOWER="), mode,",",transmitPower);
-    if (waitResponse() != 1) {
-      return false;
-    } else {
-        String resp = stream.readStringUntil('\r');
-    }
-    return true;
+	sendAT(GF(AT_TXP), GF(AT_EQ), mode, ",", transmitPower);
+	return (waitResponse() == 1);
+  }
+
+  int getPower() {
+    return (int)getIntValue(GF(AT_TXP));
   }
 
 #ifdef SerialLoRa
@@ -716,19 +752,11 @@ public:
 #endif
 
   bool dutyCycle(bool on) {
-    sendAT(GF("+DUTYCYCLE="), on);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF(AT_DCS), on);
   }
 
   bool setPort(uint8_t port) {
-    sendAT(GF("+PORT="), port);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF(AT_PORT), port);
   }
 
   uint8_t getDownlinkPort(){
@@ -736,27 +764,19 @@ public:
   }
 
   bool publicNetwork(bool publicNetwork) {
-    sendAT(GF("+NWK="), publicNetwork);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF(AT_PNM), publicNetwork);
   }
 
   bool sleep(bool on = true) {
-    sendAT(GF("+SLEEP="), on);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF(AT_SLEEP), on);
   }
 
-  bool format(bool hexMode) {
-    sendAT(GF("+DFORMAT="), hexMode);
-    if (waitResponse() != 1) {
-      return false;
+  bool format(bool mode) {
+    if (setValue(GF(AT_FORMAT), mode)){
+    	formatBin = mode;
+    	return true;
     }
-    return true;
+    return false;
   }
 
 /*
@@ -771,135 +791,89 @@ public:
 */
 
   bool dataRate(uint8_t dr) {
-    sendAT(GF("+DR="), dr);
-    if (waitResponse() != 1) {
-      return false;
+    if (setValue(GF(AT_DR), dr)){
+    	(void)modemGetMaxSize();
+    	return true;
     }
-    return true;
+    return false;
   }
 
   int getDataRate() {
-    int dr = -1;
-    sendAT(GF("+DR?"));
-    if (waitResponse("+OK=") == 1) {
-        dr = stream.readStringUntil('\r').toInt();
-    }
-    return dr;
+    return (int)getIntValue(GF(AT_DR));
   }
 
-  bool setADR(bool adr) {
-    sendAT(GF("+ADR="), adr);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+  bool setADR(bool nadr) {
+	if (setValue(GF(AT_ADR), nadr)){
+		adr = nadr;
+		return true;
+	}
+	return false;
   }
 
   int getADR() {
-    int adr = -1;
-    sendAT(GF("+ADR?"));
-    if (waitResponse("+OK=") == 1) {
-        adr = stream.readStringUntil('\r').toInt();
-    }
-    return adr;
+    return (int)getIntValue(GF(AT_ADR));
   }
 
   String getDevAddr() {
-    String devaddr = "";
-    sendAT(GF("+DEVADDR?"));
-    if (waitResponse("+OK=") == 1) {
-        devaddr = stream.readStringUntil('\r');
-    }
-    return devaddr;
+    return getStringValue(GF(AT_DADDR));
   }
 
   String getNwkSKey() {
-    String nwkskey = "";
-    sendAT(GF("+NWKSKEY?"));
-    if (waitResponse("+OK=") == 1) {
-        nwkskey = stream.readStringUntil('\r');
-    }
-    return nwkskey;
+    return getStringValue(GF(AT_NWKSKEY));
   }
 
   String getAppSKey() {
-    String appskey = "";
-    sendAT(GF("+APPSKEY?"));
-    if (waitResponse("+OK=") == 1) {
-        appskey = stream.readStringUntil('\r');
-    }
-    return appskey;
+    return getStringValue(GF(AT_APPSKEY));
   }
 
   int getRX2DR() {
-    int dr = -1;
-    sendAT(GF("+RX2DR?"));
-    if (waitResponse("+OK=") == 1) {
-        dr = stream.readStringUntil('\r').toInt();
-    }
-    return dr;
+    return (int)getIntValue(GF(AT_RX2DR));
   }
 
   bool setRX2DR(uint8_t dr) {
-    sendAT(GF("+RX2DR="),dr);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF(AT_RX2DR),dr);
   }
 
   uint32_t getRX2Freq() {
-    int freq = -1;
-    sendAT(GF("+RX2FQ?"));
-    if (waitResponse("+OK=") == 1) {
-        freq = stream.readStringUntil('\r').toInt();
-    }
-    return freq;
+    return getUIntValue(GF(AT_RX2FQ));
   }
 
   bool setRX2Freq(uint32_t freq) {
-    sendAT(GF("+RX2FQ="),freq);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF(AT_RX2FQ),freq);
   }
 
-  bool setFCU(uint16_t fcu) {
-    sendAT(GF("+FCU="), fcu);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+  bool setFCU(uint32_t fcu) {
+    return setValue(GF(AT_FCU), fcu);
   }
 
-  int32_t getFCU() {
-    int32_t fcu = -1;
-    sendAT(GF("+FCU?"));
-    if (waitResponse("+OK=") == 1) {
-        fcu = stream.readStringUntil('\r').toInt();
-    }
-    return fcu;
+  uint32_t getFCU() {
+	return getUIntValue(GF(AT_FCU));
   }
 
-  bool setFCD(uint16_t fcd) {
-    sendAT(GF("+FCD="), fcd);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+  bool setFCD(uint32_t fcd) {
+    return setValue(GF(AT_FCD), fcd);
   }
 
-  int32_t getFCD() {
-    int32_t fcd = -1;
-    sendAT(GF("+FCD?"));
-    if (waitResponse("+OK=") == 1) {
-        fcd = stream.readStringUntil('\r').toInt();
-    }
-    return fcd;
+  uint32_t getFCD() {
+    return getUIntValue(GF(AT_FCD));
   }
 
+  int getRSSI() {
+    return (int)getIntValue(GF(AT_RSSI));
+  }
 
+  int getSNR() {
+    return (int)getIntValue(GF(AT_SNR));
+  }
+
+  bool getMsgConfirmed() {
+    return getIntValue(GF(AT_CFS)) == 1;
+  }
+
+  bool getJoinStatus() {
+    return (getIntValue(GF(AT_NJS)));
+  }
+  
 private:
 
   bool isArduinoFW() {
@@ -907,56 +881,43 @@ private:
   }
 
   bool isLatestFW() {
+	compat_mode = (fw_version.compareTo(ARDUINO_FW_VERSION_AT) < 0);
     return (fw_version == ARDUINO_FW_VERSION);
   }
 
   bool changeMode(_lora_mode mode) {
-    sendAT(GF("+MODE="), mode);
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
+    return setValue(GF(AT_NJM), mode);
   }
 
   bool join(uint32_t timeout) {
-    sendAT(GF("+JOIN"));
+    sendAT(GF(AT_JOIN));
     sendAT();
-    if (waitResponse(timeout, "+EVENT=1,1") != 1) {
+    if (waitResponse(timeout, GF(AT_EVENT) GF(AT_EQ) "1,1") != 1) {
       return false;
     }
+    (void)streamSkipUntil('\r');
     return true;
   }
 
   bool set(_lora_property prop, const char* value) {
     switch (prop) {
         case APP_EUI:
-            sendAT(GF("+APPEUI="), value);
-            break;
+        	return setValue(GF(AT_APPEUI), value);
         case APP_KEY:
-            sendAT(GF("+APPKEY="), value);
-            break;
+        	return setValue(GF(AT_APPKEY), value);
         case DEV_EUI:
-            sendAT(GF("+DEVEUI="), value);
-            break;
+        	return setValue(GF(AT_DEUI), value);
         case DEV_ADDR:
-            sendAT(GF("+DEVADDR="), value);
-            break;
+        	return setValue(GF(AT_DADDR), value);
         case NWKS_KEY:
-            sendAT(GF("+NWKSKEY="), value);
-            break;
+        	return setValue(GF(AT_NWKSKEY), value);
         case NWK_ID:
-            sendAT(GF("+IDNWK="), value);
-            break;
+            return setValue(GF(AT_NWKID), value);
         case APPS_KEY:
-            sendAT(GF("+APPSKEY="), value);
-            break;
+        	return setValue(GF(AT_APPSKEY), value);
         default:
             return false;
     }
-    if (waitResponse() != 1) {
-      return false;
-    }
-    return true;
   }
 
   /**
@@ -979,20 +940,30 @@ private:
    */
   int modemSend(const void* buff, size_t len, bool confirmed) {
 
-    size_t max_len = modemGetMaxSize();
-    if (len > max_len) {
+	if (adr)
+    	(void)modemGetMaxSize();
+
+    if (len > msize) {
         return -20;
     }
 
     if (confirmed) {
-        sendAT(GF("+CTX "), len);
+        sendAT(GF(AT_CTX), " ", formatBin ? len*2 : len);
     } else {
-        sendAT(GF("+UTX "), len);
+        sendAT(GF(AT_UTX), " ", formatBin ? len*2 : len);
     }
+    if (formatBin){
+		unsigned char * pin = (uint8_t *)buff;
+		const char * hex = "0123456789ABCDEF";
+		for(; pin < (uint8_t *)buff+len; pin++){
+			stream.write(hex[(*pin>>4) & 0xF]);
+			stream.write(hex[ *pin     & 0xF]);
+		}
+    }
+    else
+    	stream.write((uint8_t*)buff, len);
 
-    stream.write((uint8_t*)buff, len);
-
-    int8_t rc = waitResponse( GFP(LORA_OK), GFP(LORA_ERROR), GFP(LORA_ERROR_PARAM), GFP(LORA_ERROR_BUSY), GFP(LORA_ERROR_OVERFLOW), GFP(LORA_ERROR_NO_NETWORK), GFP(LORA_ERROR_RX), GFP(LORA_ERROR_UNKNOWN) );
+    int8_t rc = waitResponse();
     if (rc == 1) {            ///< OK
       return len;
     } else if ( rc > 1 ) {    ///< LORA ERROR
@@ -1003,24 +974,16 @@ private:
   }
 
   size_t modemGetMaxSize() {
-    if (isArduinoFW()) {
-      return 64;
+    if (compat_mode  && isArduinoFW()) {
+      return ARDUINO_LORA_MAXBUFF;
     }
-    sendAT(GF("+MSIZE?"));
-    if (waitResponse(2000L) != 1) {
-      return 0;
-    }
-    streamSkipUntil('=');
-    return stream.readStringUntil('\r').toInt();
-  }
 
-  size_t getJoinStatus() {
-    sendAT(GF("+NJS?"));
-    if (waitResponse(2000L) != 1) {
-      return 0;
+    int size = getIntValue(GF(AT_MSIZE));
+    if (size > 0){
+    	msize = (size_t)size;
+    	return msize;
     }
-    streamSkipUntil('=');
-    return stream.readStringUntil('\r').toInt();
+    return 0;
   }
 
   /* Utilities */
@@ -1035,14 +998,14 @@ private:
     streamWrite(tail...);
   }
 
-  int streamRead() { return stream.read(); }
-
-  bool streamSkipUntil(char c) { //TODO: timeout
-    while (true) {
-      while (!stream.available()) {}
-      if (stream.read() == c)
-        return true;
-    }
+  bool streamSkipUntil(char c, unsigned long timeout = 1000L) {
+    unsigned long startMillis = millis();
+	do {
+	  if (stream.available()) {
+		if (stream.read() == c)
+	      return true;
+	  }
+    } while (millis() - startMillis < timeout);
     return false;
   }
 
@@ -1054,80 +1017,135 @@ private:
     DBG("### AT:", cmd...);
   }
 
-  // TODO: Optimize this!
+  int char2int(char input)
+  {
+    if(input >= '0' && input <= '9')
+      return input - '0';
+    if(input >= 'A' && input <= 'F')
+      return input - 'A' + 10;
+    if(input >= 'a' && input <= 'f')
+      return input - 'a' + 10;
+    return 0;
+  }
+
+  void populateChannelsMask(){
+	//Populate channelsMask array
+	int max_retry = 3;
+	for (int retry = 0; retry < max_retry; retry++) {
+	  String mask = getChannelMask();
+	  if (mask != "0") {
+		break;
+	  }
+	}
+  }
+
   /**
    * @brief wait for a response from the modem.
    * 
    * @param timeout the time in milliseconds to wait for a response
    * @param data a string containing the response to wait for
-   * @param r1 response string
-   * @param r2 response string
-   * @param r3 response string
-   * @param r4 response string
-   * @param r5 response string
-   * @param r6 response string
-   * @param r7 response string
-   * @param r8 response string
+   * @param r1 response string defaults to LORA_OK
+   * @param r2 response string defaults to LORA_ERROR
+   * @param r3 response string defaults to LORA_ERROR_PARAM
+   * @param r4 response string defaults to LORA_ERROR_BUSY
+   * @param r5 response string defaults to LORA_ERROR_OVERFLOW
+   * @param r6 response string defaults to LORA_ERROR_NO_NETWORK
+   * @param r7 response string defaults to LORA_ERROR_RX
+   * @param r8 response string defaults to LORA_ERROR_UNKNOWN
    * @return int8_t   n if the response = r<n>
-   *                  99 if the response ends with "+RECV="
    *                  -1 if timeout
    */
   int8_t waitResponse(uint32_t timeout, String& data,
                        ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
-                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
-                       ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
+                       ConstStr r3=GFP(LORA_ERROR_PARAM), ConstStr r4=GFP(LORA_ERROR_BUSY), ConstStr r5=GFP(LORA_ERROR_OVERFLOW),
+                       ConstStr r6=GFP(LORA_ERROR_NO_NETWORK), ConstStr r7=GFP(LORA_ERROR_RX), ConstStr r8=GFP(LORA_ERROR_UNKNOWN))
   {
-    data.reserve(64);
+    data.reserve(msize);
     int8_t index = -1;
     int length = 0;
+    int a = -1;
     unsigned long startMillis = millis();
     do {
       YIELD();
       while (stream.available() > 0) {
-        int a = streamRead();
+        a = stream.peek();
         if (a < 0) continue;
-        data += (char)a;
-        if (r1 && data.endsWith(r1)) {
-          index = 1;
-          goto finish;
-        } else if (r2 && data.endsWith(r2)) {
-          index = 2;
-          goto finish;
-        } else if (r3 && data.endsWith(r3)) {
-          index = 3;
-          goto finish;
-        } else if (r4 && data.endsWith(r4)) {
-          index = 4;
-          goto finish;
-        } else if (r5 && data.endsWith(r5)) {
-          index = 5;
-          goto finish;
-        } else if (r6 && data.endsWith(r6)) {
-          index = 6;
-          goto finish;
-        } else if (r7 && data.endsWith(r7)) {
-          index = 7;
-          goto finish;
-        } else if (r8 && data.endsWith(r8)) {
-          index = 8;
-          goto finish;
-        } else if (data.endsWith("+RECV=")) {
-          data = "";
-          downlinkPort = stream.readStringUntil(',').toInt();
-          length = stream.readStringUntil('\r').toInt();
-          streamSkipUntil('\n');
-          streamSkipUntil('\n');
-          for (int i = 0; i < length;) {
-            if (stream.available()) {
-                rx.put(stream.read());
-                i++;
-            }
-          }
+        if (a == '=' || a == '\r'
+        		|| (a == '+' && data.length() > 0)) {
+			DBG("### Data string:", data);
+			if (r1 && data.endsWith(r1)) {
+			  index = 1;
+			  goto finish;
+			} else if (r2 && data.endsWith(r2)) {
+			  index = 2;
+			  goto finish;
+			} else if (r3 && data.endsWith(r3)) {
+			  index = 3;
+			  goto finish;
+			} else if (r4 && data.endsWith(r4)) {
+			  index = 4;
+			  goto finish;
+			} else if (r5 && data.endsWith(r5)) {
+			  index = 5;
+			  goto finish;
+			} else if (r6 && data.endsWith(r6)) {
+			  index = 6;
+			  goto finish;
+			} else if (r7 && data.endsWith(r7)) {
+			  index = 7;
+			  goto finish;
+			} else if (r8 && data.endsWith(r8)) {
+			  index = 8;
+			  goto finish;
+			} else if ((data.endsWith(GF(AT_RECV))
+					|| data.endsWith(GF(AT_RECVB))) && a == '=') {
+			  downlinkPort = stream.readStringUntil(',').toInt();
+			  length = stream.readStringUntil('\r').toInt();
+			  (void)streamSkipUntil('\n');
+			  (void)streamSkipUntil('\n');
+			  if ((uint16_t)length >= msize){
+				  DBG("### Data string too long:", data);
+				  data = "";
+				  length = 0;
+				  continue;
+			  }
+			  if (data.endsWith(GF(AT_RECVB))){ // Binary receive
+				  char Hi = 0;
+				  for (int i = 0; i < length*2;) {
+					if (stream.available()) {
+						if (!(i%2))
+							Hi=char2int(stream.read()) * 0x10;
+						else
+							rx.put(char2int(stream.read()) + Hi);
+						i++;
+					}
+				  }
+			  }
+			  else	// String receive
+				  for (int i = 0; i < length;) {
+					if (stream.available()) {
+						rx.put(stream.read());
+						i++;
+					}
+				  }
+			  data = "";
+			  length = 0;
+			  continue;
+			}
+        }
+        data += (char)stream.read();
+        length++;
+        if ((uint16_t)length >= msize){
+        	DBG("### Data string too long:", data);
+        	return index;
         }
       }
     } while (millis() - startMillis < timeout);
 finish:
-    if (!index) {
+	if (a >= 0 && a != '+') // no follow-up command, get terminator from buffer
+		(void)stream.read();
+
+    if (index == -1) {
       data.trim();
       if (data.length()) {
         DBG("### Unhandled:", data);
@@ -1139,18 +1157,54 @@ finish:
 
   int8_t waitResponse(uint32_t timeout,
                        ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
-                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
-                       ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
+                       ConstStr r3=GFP(LORA_ERROR_PARAM), ConstStr r4=GFP(LORA_ERROR_BUSY), ConstStr r5=GFP(LORA_ERROR_OVERFLOW),
+                       ConstStr r6=GFP(LORA_ERROR_NO_NETWORK), ConstStr r7=GFP(LORA_ERROR_RX), ConstStr r8=GFP(LORA_ERROR_UNKNOWN))
   {
     String data;
     return waitResponse(timeout, data, r1, r2, r3, r4, r5, r6, r7, r8);
   }
 
   int8_t waitResponse(ConstStr r1=GFP(LORA_OK), ConstStr r2=GFP(LORA_ERROR),
-                       ConstStr r3=NULL, ConstStr r4=NULL, ConstStr r5=NULL,
-                       ConstStr r6=NULL, ConstStr r7=NULL, ConstStr r8=NULL)
+					  ConstStr r3=GFP(LORA_ERROR_PARAM), ConstStr r4=GFP(LORA_ERROR_BUSY), ConstStr r5=GFP(LORA_ERROR_OVERFLOW),
+					  ConstStr r6=GFP(LORA_ERROR_NO_NETWORK), ConstStr r7=GFP(LORA_ERROR_RX), ConstStr r8=GFP(LORA_ERROR_UNKNOWN))
   {
     return waitResponse(1000, r1, r2, r3, r4, r5, r6, r7, r8);
+  }
+
+  String getStringValue(ConstStr cmd){
+	String value = "";
+	sendAT(cmd, GF(AT_QM));
+	if ((!compat_mode && waitResponse(cmd) == 1)
+			|| (compat_mode && waitResponse() == 1)) {
+		value = stream.readStringUntil('\r');
+	}
+	return value;
+  }
+
+  int32_t getIntValue(ConstStr cmd){
+	int32_t value = -1;
+	sendAT(cmd, GF(AT_QM));
+	if ((!compat_mode && waitResponse(cmd) == 1)
+			|| (compat_mode && waitResponse() == 1)) {
+		value = stream.readStringUntil('\r').toInt();
+	}
+	return value;
+  }
+
+  uint32_t getUIntValue(ConstStr cmd){
+	uint32_t value = 0;
+	sendAT(cmd, GF(AT_QM));
+	if ((!compat_mode && waitResponse(cmd) == 1)
+			|| (compat_mode && waitResponse() == 1)) {
+		value = strtoul(stream.readStringUntil('\r').c_str(), NULL, 10);
+	}
+	return value;
+  }
+
+  template<typename T, typename U>
+  bool setValue(T cmd, U value) {
+	sendAT(cmd, GF(AT_EQ), value);
+	return (waitResponse() == 1);
   }
 
 };
